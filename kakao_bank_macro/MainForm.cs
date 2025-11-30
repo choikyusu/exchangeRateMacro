@@ -214,38 +214,40 @@ namespace kakao_bank_macro
 
         private async Task RunAutomationLoopAsync()
         {
+            IntPtr hWnd = FindWindow(null, "Samsung Flow");
+            // IntPtr hWnd = FindWindow(null, "Galaxy S10");
+            this.Invoke((Delegate)(() =>
+            {
+                SetWindowPos(hWnd, IntPtr.Zero, width - 408, 0, 408, 900, SWP_NOZORDER | SWP_SHOWWINDOW);
+            }));
+
             while (isRunning)
             {
                 try
                 {
-
-                    bool isRunning = await isRunningTimeAsync();
-                    if (!isRunning) continue;
-
-                    IntPtr hWnd = FindWindow(null, "Samsung Flow");
-                    // IntPtr hWnd = FindWindow(null, "Galaxy S10");
-                    this.Invoke((Delegate)(() =>
-                    {
-                        SetWindowPos(hWnd, IntPtr.Zero, width - 408, 0, 408, 900, SWP_NOZORDER | SWP_SHOWWINDOW);
-                    }));
-
                     //if (loopCounter % 3 == 0)
                     //{
                     //    getRateFromKakaoPay();
                     //}
-                     getRateFromSwitchwon();
-                    getRateFromKakaoBank();
-                    getRateFromToss();
-                    this.Invoke((Delegate)(() =>
-                    {
-                        sendKakaotalkMessage("돈환도박");
-                        sendKakaotalkMessage("NEW환도박방");
-                    }));
+
+
+                    initHome();
+
+                    getRateFromSwitchwon();
+                    //getRateFromKakaoBank();
+                    //getRateFromToss();
+                    //this.Invoke((Delegate)(() =>
+                    //{
+                    //    sendKakaotalkMessage("최규수");
+                    //    // sendKakaotalkMessage("NEW환도박방");
+                    //}));
 
 
                     saveValue();
 
                     loopCounter++;
+
+                    Thread.Sleep(3000);
                 }
                 catch(Exception ex)
                 {
@@ -345,6 +347,26 @@ namespace kakao_bank_macro
 
                 }
             }
+        }
+
+        private void initHome()
+        {
+            Stopwatch sw = Stopwatch.StartNew();   // 시작
+            log("시작: 홈으로 이동");
+            while (true)
+            {
+                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+                {
+                    log("시작: 홈버튼" + TouchInjector.getColor(1573, 766).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    System.Threading.Thread.Sleep(100);
+                }
+                else break;
+                System.Threading.Thread.Sleep(300);
+            }
+
+            sw.Stop();
+            log("시작: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
         private async Task<bool> isRunningTimeAsync()
@@ -447,11 +469,9 @@ namespace kakao_bank_macro
 
         private void getRateFromKakaoBank()
         {
-            Thread.Sleep(1000);
+            Stopwatch sw = Stopwatch.StartNew();   // 시작
             log("카카오뱅크: 시작" + TouchInjector.getColor(1585, 778).ToString());
             TouchInjector.TouchClickWithColor(1585, 778, Color.FromArgb(254, 227, 0));
-
-            
 
             if (TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(14, 168, 255)))
             {
@@ -464,82 +484,40 @@ namespace kakao_bank_macro
                         TouchInjector.TouchClick(1585, 778);
                     }
                     else break;
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(300);
                 }
             }
 
 
-            
-
+            log("카카오뱅크: 화면 진입" + TouchInjector.getColor(1850, 558).ToString());
             while (true)
             {
-                if (TouchInjector.IsColorMatch(1890, 867, Color.FromArgb(0, 0, 0)))
+                if (TouchInjector.IsColorMatch(1850, 558, Color.FromArgb(99, 110, 215)))
                 {
-                    log("카카오뱅크: 검은색화면 표시" + TouchInjector.getColor(1890, 867).ToString());
+                    log("카카오뱅크: 현재환율 클릭" + TouchInjector.getColor(1585, 778).ToString());
+                    TouchInjector.TouchClick(1722, 624);
+                    System.Threading.Thread.Sleep(100);
                     break;
                 }
-                System.Threading.Thread.Sleep(100);
+                System.Threading.Thread.Sleep(300);
             }
 
-            log("카카오뱅크: 터치시작");
-            TouchInjector.TouchDrag(new (int x, int y)[]
-                        {
-                            (1622, 543),
-                            (1822, 543),
-                            (1617, 722),
-                            (1822, 722)
-                        }, 7, 20);
-
-            
-            log("카카오뱅크: 환율화면 진입 시도");
-
+            log("카카오뱅크: 현재환율 화면 진입" + TouchInjector.getColor(1766, 720).ToString());
             while (true)
             {
-                if (TouchInjector.IsColorMatch(1890, 867, Color.FromArgb(0, 0, 0)))
-                {
-                    log("카카오뱅크: 검은색화면 표시" + TouchInjector.getColor(1890, 867).ToString());
-
-                    log("카카오뱅크: 터치시작");
-                    TouchInjector.TouchDrag(new (int x, int y)[]
-                            {
-                            (1622, 543),
-                            (1822, 543),
-                            (1617, 722),
-                            (1822, 722)
-                            }, 7, 20);
-                }
-                else if(TouchInjector.IsColorMatch(1718, 486, Color.FromArgb(236, 208, 194)))
-                {
-                    Thread.Sleep(2000);
-                    log("카카오뱅크: 환율화면 진입" + TouchInjector.getColor(1718, 486).ToString());
-                    TouchInjector.TouchClick(1718, 486);
-                    break;
-                }
-                System.Threading.Thread.Sleep(500);
+                if (TouchInjector.IsColorMatch(1766, 720, Color.FromArgb(244, 244, 244))) break;
+                System.Threading.Thread.Sleep(300);
             }
 
-            while (true)
-            {
-                log("카카오뱅크: 환율 기다리는중" + TouchInjector.getColor(1887, 109).ToString());
-                if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
-                {
-                    log("카카오뱅크: 환율화면 떴다" + TouchInjector.getColor(1887, 109).ToString());
-                    break; 
-                }
-                System.Threading.Thread.Sleep(100);
-            }
+            log("카카오뱅크: 현재환율 화면");
 
-            System.Threading.Thread.Sleep(1000);
-
-            log("카카오뱅크: 환율 캡쳐");
-
-            Bitmap bmp = new Bitmap(100, 35);
+            Bitmap bmp = new Bitmap(170, 50);
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.CopyFromScreen(1792, 609, 0, 0, new Size(100, 35));
+                g.CopyFromScreen(1634, 198, 0, 0, new Size(170, 50));
             }
 
-            string exchangeRate = OcrHelper.RecognizeEnglish(bmp);
+            string exchangeRate = OcrHelper.Instance.RecognizeEnglish(bmp);
 
             this.Invoke((Delegate)(() =>
             {
@@ -599,30 +577,48 @@ namespace kakao_bank_macro
                 }
             }));
 
-            log("카카오뱅크: 끝" + TouchInjector.getColor(1863, 783).ToString());
+            log("카카오뱅크: 환율 인식 끝");
+
+
+            while (true)
+            {
+                if (!TouchInjector.IsColorMatch(1851, 519, Color.FromArgb(99, 110, 215)))
+                {
+                    log("카카오뱅크: <- 클릭" + TouchInjector.getColor(1851, 519).ToString());
+                    TouchInjector.TouchClick(1547, 113);
+                    System.Threading.Thread.Sleep(200);
+                }
+                else break;
+
+                System.Threading.Thread.Sleep(300);
+
+            }
+
+            log("카카오뱅크: 달러박스 화면" + TouchInjector.getColor(1851, 519).ToString());
 
             while (true)
             {
                 if (!TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
                 {
-                    log("카카오뱅크: 백버튼" + TouchInjector.getColor(1585, 778).ToString());
-                    TouchInjector.TouchClick(1833, 856);
+                    log("카카오뱅크: 홈버튼" + TouchInjector.getColor(1585, 778).ToString());
+                    TouchInjector.TouchClick(1721, 856);
                     System.Threading.Thread.Sleep(200);
-                    TouchInjector.TouchClick(1833, 856);
                 }
                 else break;
 
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(300);
 
             }
             bmp.Dispose();
+
+            sw.Stop();
+            log("카뱅: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
         private void getRateFromToss()
         {
-            Thread.Sleep(1000);
+            Stopwatch sw = Stopwatch.StartNew();   // 시작
             log("토스: 시작");
-
             if (!TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
             {
                 log("토스: 검은색 화면인듯" + TouchInjector.getColor(1863, 783).ToString());
@@ -637,7 +633,7 @@ namespace kakao_bank_macro
                     {
                         break;
                     }
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(300);
                 }
             }
 
@@ -645,85 +641,116 @@ namespace kakao_bank_macro
 
             TouchInjector.TouchClickWithColor(1863, 783, Color.FromArgb(17, 170, 255));
 
+            System.Threading.Thread.Sleep(300);
 
-            if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+            if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
             {
                 while (true)
                 {
-                    if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+                    if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
                     {
-                        log("토스: 시작버튼 반복" + TouchInjector.getColor(1585, 778).ToString());
+                        log("토스: 시작버튼 반복" + TouchInjector.getColor(1886, 108).ToString());
                         TouchInjector.TouchClick(1863, 783);
                     }
                     else
                     {
                         break;
                     }
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(300);
                 }
             }
 
-
-            log("토스: 전체 메뉴 클릭" + TouchInjector.getColor(1656, 190).ToString());
-            while (true)
+            log("토스: 뱅크 밖으로 나갔는지 체크중" + TouchInjector.getColor(1786, 183).ToString());
+            if (TouchInjector.IsColorMatch(1786, 183, Color.FromArgb(242, 244, 245)))
             {
-                if (TouchInjector.IsColorMatch(1656, 190, Color.FromArgb(242, 244, 245)))
+                log("토스: 토스뱅크 환전하기 누름" + TouchInjector.getColor(1786, 183).ToString());
+                TouchInjector.TouchClick(1554, 296);
+                System.Threading.Thread.Sleep(100);
+
+                while (true)
                 {
-                    log("토스: 전체 메뉴 클릭 반복 클릭" + TouchInjector.getColor(1656, 190).ToString());
-                    TouchInjector.TouchClick(1860, 794);
-                    break;
+                    if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
+                    {
+                        log("토스: 토스뱅크 진입" + TouchInjector.getColor(1887, 109).ToString());
+                        break;
+                    }
+                    System.Threading.Thread.Sleep(300);
                 }
-                System.Threading.Thread.Sleep(1000);
             }
 
 
-            // 루트1: 최근
+            Thread.Sleep(300);
+            log("토스: 아래로 스크롤");
+            TouchInjector.TouchDrag(new (int x, int y)[]
+                        {
+                                (1714, 774),
+                                (1714, 354),
+                        }, 5, 100);
+            Thread.Sleep(300);
 
-            log("토스: 환전하기 클릭" + TouchInjector.getColor(1553, 296).ToString());
-            TouchInjector.TouchClickWithColor(1553, 296, Color.FromArgb(194, 231, 255));
-
-            //////////////////////////
-            // 루트2: 
-
-            //Thread.Sleep(1000);
-
-
-            //while (true)
-            //{
-            //    log("토스: 진입시작22");
-            //    if (TouchInjector.IsColorMatch(1871, 181, Color.FromArgb(242, 244, 245))) 
-            //    { 
-            //        TouchInjector.TouchClick(1830, 115);
-            //        break;
-            //    }
-            //    System.Threading.Thread.Sleep(300);
-            //}
-
-
-            //TouchInjector.TouchClickWithColor(1547, 334, Color.FromArgb(40,47,59));
-
-            //TouchInjector.TouchClickWithColor(1552, 290, Color.FromArgb(196, 177, 247));
-            //////////////////////////
-
-            log("토스뱅크: 환율 화면 진입" + TouchInjector.getColor(1887, 109).ToString());
-
-            while (true)
+            Bitmap bmp3 = new Bitmap(110, 30);
+            using (Graphics g = Graphics.FromImage(bmp3))
             {
-                if (TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(10,15,20)))
-                {
-                    log("토스뱅크: 환율진입중" + TouchInjector.getColor(1887, 109).ToString());
-                    break;
-                }
-
-                log("토스뱅크: 환율 화면 기다리는중" + TouchInjector.getColor(1887, 109).ToString());
-
-
-                System.Threading.Thread.Sleep(400);
+                g.CopyFromScreen(1787, 465, 0, 0, new Size(110, 30));
             }
 
-            Thread.Sleep(1700);
+            string exchangeTDRate = OcrHelper.Instance.RecognizeEnglish(bmp3);
 
-            log("토스뱅크: 캡쳐");
+            this.Invoke((Delegate)(() =>
+            {
+                pictureBox7.Image?.Dispose();
+                pictureBox7.Image = (Bitmap)bmp3.Clone();
+
+                tossTDLabel.Text = exchangeTDRate.Replace(",", "");
+            }));
+
+            Bitmap bmp4 = new Bitmap(110, 30);
+            using (Graphics g = Graphics.FromImage(bmp4))
+            {
+                g.CopyFromScreen(1787, 545, 0, 0, new Size(110, 30));
+            }
+
+            string exchangeTBRate = OcrHelper.Instance.RecognizeEnglish(bmp4);
+
+            this.Invoke((Delegate)(() =>
+            {
+                pictureBox8.Image?.Dispose();
+                pictureBox8.Image = (Bitmap)bmp4.Clone();
+                tossTBLabel.Text = exchangeTBRate.Replace(",", "");
+            }));
+
+            Bitmap bmp5 = new Bitmap(110, 30);
+            using (Graphics g = Graphics.FromImage(bmp5))
+            {
+                g.CopyFromScreen(1787, 787, 0, 0, new Size(110, 30));
+            }
+
+            string exchangeINRate = OcrHelper.Instance.RecognizeEnglish(bmp5);
+
+            this.Invoke((Delegate)(() =>
+            {
+                pictureBox9.Image?.Dispose();
+                pictureBox9.Image = (Bitmap)bmp5.Clone();
+
+                tossINLabel.Text = exchangeINRate.Replace(",", "");
+            }));
+
+            log("토스: 위로 스크롤");
+            TouchInjector.TouchDrag(new (int x, int y)[]
+                        {
+                                (1714, 354),
+                                (1714, 800),
+                        }, 5, 100);
+
+            Thread.Sleep(500);
+
+            TouchInjector.TouchDrag(new (int x, int y)[]
+                        {
+                                (1714, 500),
+                                (1714, 800),
+                        }, 5, 100);
+
+            Thread.Sleep(500);
 
             Bitmap bmp = new Bitmap(110, 30);
             using (Graphics g = Graphics.FromImage(bmp))
@@ -731,7 +758,7 @@ namespace kakao_bank_macro
                 g.CopyFromScreen(1787, 390, 0, 0, new Size(110, 30));
             }
 
-            string exchangeDRate = OcrHelper.RecognizeEnglish(bmp);
+            string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
 
             this.Invoke((Delegate)(() =>
             {
@@ -746,14 +773,14 @@ namespace kakao_bank_macro
                 g.CopyFromScreen(1787, 470, 0, 0, new Size(110, 30));
             }
 
-            string exchangeYRate = OcrHelper.RecognizeEnglish(bmp1);
+            string exchangeYRate = OcrHelper.Instance.RecognizeEnglish(bmp1);
 
             this.Invoke((Delegate)(() =>
             {
                 pictureBox5.Image?.Dispose();
                 pictureBox5.Image = (Bitmap)bmp1.Clone();
 
-                
+
                 tossYLabel.Text = exchangeYRate.Replace(",", "");
             }));
 
@@ -763,68 +790,13 @@ namespace kakao_bank_macro
                 g.CopyFromScreen(1787, 715, 0, 0, new Size(110, 30));
             }
 
-            string exchangeVDRate = OcrHelper.RecognizeEnglish(bmp2);
+            string exchangeVDRate = OcrHelper.Instance.RecognizeEnglish(bmp2);
 
             this.Invoke((Delegate)(() =>
             {
                 pictureBox6.Image?.Dispose();
                 pictureBox6.Image = (Bitmap)bmp2.Clone();
                 tossVDLabel.Text = exchangeVDRate.Replace(",", "");
-            }));
-
-            TouchInjector.TouchDrag(new (int x, int y)[]
-                        {
-                                (1714, 774),
-                                (1714, 354),
-                        }, 5, 100);
-
-            Thread.Sleep(1000);
-
-            Bitmap bmp3 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp3))
-            {
-                g.CopyFromScreen(1787, 465, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeTDRate = OcrHelper.RecognizeEnglish(bmp3);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox7.Image?.Dispose();
-                pictureBox7.Image = (Bitmap)bmp3.Clone();
-
-                tossTDLabel.Text = exchangeTDRate.Replace(",", "");
-            }));
-
-            Bitmap bmp4 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp4))
-            {
-                g.CopyFromScreen(1787, 549, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeTBRate = OcrHelper.RecognizeEnglish(bmp4);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox8.Image?.Dispose();
-                pictureBox8.Image = (Bitmap)bmp4.Clone();
-                tossTBLabel.Text = exchangeTBRate.Replace(",", "");
-            }));
-
-            Bitmap bmp5 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp5))
-            {
-                g.CopyFromScreen(1787, 790, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeINRate = OcrHelper.RecognizeEnglish(bmp5);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox9.Image?.Dispose();
-                pictureBox9.Image = (Bitmap)bmp5.Clone();
-
-                tossINLabel.Text = exchangeINRate.Replace(",", "");
             }));
 
             log("토스: 끝" + TouchInjector.getColor(1585, 778).ToString());
@@ -835,30 +807,7 @@ namespace kakao_bank_macro
             //log("토스: 전체 메뉴 클릭" + TouchInjector.getColor(1861, 790).ToString());
             //TouchInjector.TouchClickWithColor(1861, 790, Color.FromArgb(203, 208, 210));
 
-            while (true)
-            {
-                log("토스: 백버튼 루프 반복");
-                if (TouchInjector.IsColorMatch(1900, 56, Color.FromArgb(208, 208, 208)))
-                {
-                    log("토스뱅크: 오류발생" + TouchInjector.getColor(1563, 736).ToString());
-                    TouchInjector.TouchClick(1563, 736);
-
-                    // TouchInjector.TouchClickWithColor(1861, 790, Color.FromArgb(203, 208, 210));
-                }
-                else if (!TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
-                {
-                    log("토스: 백버튼" + TouchInjector.getColor(1585, 778).ToString());
-                    TouchInjector.TouchClick(1833, 856);
-                    System.Threading.Thread.Sleep(200);
-                    TouchInjector.TouchClick(1833, 856);
-                }
-                else 
-                {
-                    log("토스: 백버튼 루프 탈출");
-                    break; 
-                }
-                System.Threading.Thread.Sleep(1000);
-            }
+            
 
             bmp.Dispose();
             bmp1.Dispose();
@@ -866,6 +815,9 @@ namespace kakao_bank_macro
             bmp3.Dispose();
             bmp4.Dispose();
             bmp5.Dispose();
+
+            sw.Stop();
+            log("토스: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
         private void getRateFromKakaoPay()
@@ -897,7 +849,7 @@ namespace kakao_bank_macro
                 g.CopyFromScreen(1537, 433, 0, 0, new Size(167, 60));
             }
 
-            string exchangeDWRate = OcrHelper.RecognizeEnglish(bmp);
+            string exchangeDWRate = OcrHelper.Instance.RecognizeEnglish(bmp);
 
 
             this.Invoke((Delegate)(() =>
@@ -925,7 +877,7 @@ namespace kakao_bank_macro
                 g.CopyFromScreen(1537, 433, 0, 0, new Size(167, 60));
             }
 
-            string exchangeWDRate = OcrHelper.RecognizeEnglish(bmp1);
+            string exchangeWDRate = OcrHelper.Instance.RecognizeEnglish(bmp1);
 
 
             this.Invoke((Delegate)(() =>
@@ -955,7 +907,7 @@ namespace kakao_bank_macro
 
         private void getRateFromSwitchwon()
         {
-            Thread.Sleep(1000);
+            Stopwatch sw = Stopwatch.StartNew();   // 시작
             log("스위치: 시작" + TouchInjector.getColor(1790, 775).ToString());
             TouchInjector.TouchClickWithColor(1790, 775, Color.FromArgb(249, 169, 72));
             if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
@@ -972,7 +924,7 @@ namespace kakao_bank_macro
                     {
                         break; 
                     }
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(3000);
                 }
             }
 
@@ -994,7 +946,7 @@ namespace kakao_bank_macro
                 {
                     break; 
                 }
-                System.Threading.Thread.Sleep(500);
+                System.Threading.Thread.Sleep(300);
             }
 
             log("스위치: 캡쳐");
@@ -1018,7 +970,7 @@ namespace kakao_bank_macro
                 }
             }
 
-            string exchangeDWRate = OcrHelper.RecognizeEnglish(bmp);
+            string exchangeDWRate = OcrHelper.Instance.RecognizeEnglish(bmp);
 
 
             this.Invoke((Delegate)(() =>
@@ -1036,17 +988,19 @@ namespace kakao_bank_macro
             {
                 if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
                 {
-                    log("스위치: 백버튼" + TouchInjector.getColor(1583, 340).ToString());
-                    TouchInjector.TouchClick(1833, 856);
-                    System.Threading.Thread.Sleep(200);
-                    TouchInjector.TouchClick(1833, 856);
+                    log("스위치: 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    System.Threading.Thread.Sleep(100);
                 }
                 else break;
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(300);
             }
 
 
             bmp.Dispose();
+
+            sw.Stop();
+            log("스위치: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
         private void sendKakaotalkAnyMessage(string roomName, string message)
@@ -1065,6 +1019,7 @@ namespace kakao_bank_macro
 
         private void sendKakaotalkMessage(string roomName)
         {
+            log("메시지 전송");
             IntPtr chattingRoom = FindWindow(null, roomName);
             IntPtr textBoxHwnd = FindWindowEx(chattingRoom, IntPtr.Zero, "RICHEDIT50W", null);
 

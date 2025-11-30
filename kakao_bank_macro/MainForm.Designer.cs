@@ -129,9 +129,9 @@
             // 
             // pictureBox1
             // 
-            pictureBox1.Location = new Point(13, 160);
+            pictureBox1.Location = new Point(0, 160);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(130, 67);
+            pictureBox1.Size = new Size(170, 50);
             pictureBox1.TabIndex = 1;
             pictureBox1.TabStop = false;
             // 
@@ -189,7 +189,7 @@
             // 
             // CPLowDWRateTextbox
             // 
-            CPLowDWRateTextbox.Location = new Point(232, 131);
+            CPLowDWRateTextbox.Location = new Point(243, 131);
             CPLowDWRateTextbox.Name = "CPLowDWRateTextbox";
             CPLowDWRateTextbox.Size = new Size(73, 23);
             CPLowDWRateTextbox.TabIndex = 14;
@@ -198,7 +198,7 @@
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new Point(176, 131);
+            label4.Location = new Point(187, 131);
             label4.Name = "label4";
             label4.Size = new Size(38, 15);
             label4.TabIndex = 13;
@@ -207,7 +207,7 @@
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(176, 102);
+            label5.Location = new Point(187, 102);
             label5.Name = "label5";
             label5.Size = new Size(38, 15);
             label5.TabIndex = 12;
@@ -216,7 +216,7 @@
             // CPCurDWRateLabel
             // 
             CPCurDWRateLabel.AutoSize = true;
-            CPCurDWRateLabel.Location = new Point(233, 75);
+            CPCurDWRateLabel.Location = new Point(244, 75);
             CPCurDWRateLabel.Name = "CPCurDWRateLabel";
             CPCurDWRateLabel.Size = new Size(14, 15);
             CPCurDWRateLabel.TabIndex = 9;
@@ -225,7 +225,7 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(175, 75);
+            label7.Location = new Point(186, 75);
             label7.Name = "label7";
             label7.Size = new Size(50, 15);
             label7.TabIndex = 11;
@@ -233,7 +233,7 @@
             // 
             // CPHighDWRateTextbox
             // 
-            CPHighDWRateTextbox.Location = new Point(232, 99);
+            CPHighDWRateTextbox.Location = new Point(243, 99);
             CPHighDWRateTextbox.Name = "CPHighDWRateTextbox";
             CPHighDWRateTextbox.Size = new Size(73, 23);
             CPHighDWRateTextbox.TabIndex = 10;
@@ -241,7 +241,7 @@
             // 
             // CPLowWDRateTextbox
             // 
-            CPLowWDRateTextbox.Location = new Point(389, 131);
+            CPLowWDRateTextbox.Location = new Point(400, 131);
             CPLowWDRateTextbox.Name = "CPLowWDRateTextbox";
             CPLowWDRateTextbox.Size = new Size(73, 23);
             CPLowWDRateTextbox.TabIndex = 20;
@@ -250,7 +250,7 @@
             // label8
             // 
             label8.AutoSize = true;
-            label8.Location = new Point(333, 131);
+            label8.Location = new Point(344, 131);
             label8.Name = "label8";
             label8.Size = new Size(38, 15);
             label8.TabIndex = 19;
@@ -259,7 +259,7 @@
             // label9
             // 
             label9.AutoSize = true;
-            label9.Location = new Point(333, 102);
+            label9.Location = new Point(344, 102);
             label9.Name = "label9";
             label9.Size = new Size(38, 15);
             label9.TabIndex = 18;
@@ -268,7 +268,7 @@
             // CPCurWDRateLabel
             // 
             CPCurWDRateLabel.AutoSize = true;
-            CPCurWDRateLabel.Location = new Point(391, 75);
+            CPCurWDRateLabel.Location = new Point(402, 75);
             CPCurWDRateLabel.Name = "CPCurWDRateLabel";
             CPCurWDRateLabel.Size = new Size(14, 15);
             CPCurWDRateLabel.TabIndex = 15;
@@ -277,7 +277,7 @@
             // label11
             // 
             label11.AutoSize = true;
-            label11.Location = new Point(332, 75);
+            label11.Location = new Point(343, 75);
             label11.Name = "label11";
             label11.Size = new Size(50, 15);
             label11.TabIndex = 17;
@@ -285,7 +285,7 @@
             // 
             // CPHighWDRateTextbox
             // 
-            CPHighWDRateTextbox.Location = new Point(389, 99);
+            CPHighWDRateTextbox.Location = new Point(400, 99);
             CPHighWDRateTextbox.Name = "CPHighWDRateTextbox";
             CPHighWDRateTextbox.Size = new Size(73, 23);
             CPHighWDRateTextbox.TabIndex = 16;
@@ -303,7 +303,7 @@
             // label13
             // 
             label13.AutoSize = true;
-            label13.Location = new Point(176, 51);
+            label13.Location = new Point(187, 51);
             label13.Name = "label13";
             label13.Size = new Size(124, 15);
             label13.TabIndex = 22;
@@ -312,7 +312,7 @@
             // label14
             // 
             label14.AutoSize = true;
-            label14.Location = new Point(333, 51);
+            label14.Location = new Point(344, 51);
             label14.Name = "label14";
             label14.Size = new Size(124, 15);
             label14.TabIndex = 23;
@@ -320,7 +320,7 @@
             // 
             // pictureBox2
             // 
-            pictureBox2.Location = new Point(176, 160);
+            pictureBox2.Location = new Point(187, 160);
             pictureBox2.Name = "pictureBox2";
             pictureBox2.Size = new Size(130, 67);
             pictureBox2.TabIndex = 24;
@@ -328,7 +328,7 @@
             // 
             // pictureBox3
             // 
-            pictureBox3.Location = new Point(333, 160);
+            pictureBox3.Location = new Point(344, 160);
             pictureBox3.Name = "pictureBox3";
             pictureBox3.Size = new Size(130, 67);
             pictureBox3.TabIndex = 25;
@@ -347,7 +347,7 @@
             webView21.AllowExternalDrop = true;
             webView21.CreationProperties = null;
             webView21.DefaultBackgroundColor = Color.White;
-            webView21.Location = new Point(338, 18);
+            webView21.Location = new Point(349, 18);
             webView21.Name = "webView21";
             webView21.Size = new Size(25, 17);
             webView21.TabIndex = 30;
@@ -641,7 +641,7 @@
             webView22.AllowExternalDrop = true;
             webView22.CreationProperties = null;
             webView22.DefaultBackgroundColor = Color.White;
-            webView22.Location = new Point(369, 18);
+            webView22.Location = new Point(380, 18);
             webView22.Name = "webView22";
             webView22.Size = new Size(17, 17);
             webView22.TabIndex = 63;
@@ -776,7 +776,7 @@
             // CBCurGapLabel
             // 
             CBCurGapLabel.AutoSize = true;
-            CBCurGapLabel.Location = new Point(110, 75);
+            CBCurGapLabel.Location = new Point(116, 75);
             CBCurGapLabel.Name = "CBCurGapLabel";
             CBCurGapLabel.Size = new Size(14, 15);
             CBCurGapLabel.TabIndex = 78;
@@ -786,7 +786,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(522, 645);
+            ClientSize = new Size(541, 645);
             Controls.Add(CBCurGapLabel);
             Controls.Add(tossVDGapLabel);
             Controls.Add(tossINGapLabel);
