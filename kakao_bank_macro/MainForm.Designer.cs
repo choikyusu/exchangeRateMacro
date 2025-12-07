@@ -863,7 +863,7 @@
             Controls.Add(pictureBox1);
             Controls.Add(startButton);
             Name = "MainForm";
-            Text = "카카오뱅크 매크로1";
+            Text = "123";
             FormClosing += MainForm_FormClosing;
             FormCornerPreferenceChanged += MainForm_FormCornerPreferenceChanged;
             FormClosed += MainForm_FormClosed;

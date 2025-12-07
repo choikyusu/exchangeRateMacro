@@ -1,5 +1,12 @@
-﻿using System.Text.RegularExpressions;
+﻿using OpenCvSharp;
+using OpenCvSharp.Extensions;
+using Sdcb.PaddleOCR;
+using Sdcb.PaddleOCR.Models.Local;
+using System.Reflection.Metadata;
+using System.Text.RegularExpressions;
 using Tesseract;
+using BitmapConverter = OpenCvSharp.Extensions.BitmapConverter;
+
 
 namespace kakao_bank_macro
 {
@@ -8,9 +15,19 @@ namespace kakao_bank_macro
         private static readonly Lazy<OcrHelper> instance =
             new Lazy<OcrHelper>(() => new OcrHelper());
 
+        private static readonly Lazy<PaddleOcrAll> _paddleOcr
+            = new Lazy<PaddleOcrAll>(() =>
+            {
+                return new PaddleOcrAll(
+                    LocalFullModels.EnglishV3
+                );
+            });
+
         public static OcrHelper Instance => instance.Value;
 
         private readonly TesseractEngine engine;
+
+        private static PaddleOcrAll Paddle => _paddleOcr.Value;
 
         // ⭐ 싱글턴 생성자
         private OcrHelper()
@@ -70,6 +87,53 @@ namespace kakao_bank_macro
                 Task.Run(() => MessageBox.Show(msg));
                 return "0";
             }
+        }
+
+        public string RunOcr(Bitmap bitmap)
+        {
+            try
+            {
+
+
+                Mat mat = BitmapConverter.ToMat(bitmap);
+
+                // 4채널(BGRA/ARGB) → 3채널(BGR) 변환
+                if (mat.Channels() == 4)
+                {
+                    Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
+                }
+
+
+                var result = Paddle.Run(mat);
+
+                string output = string.Join("\n", result.Regions.Select(r => r.Text));
+
+                string text = output.Trim();
+
+                string newText = Regex.Replace(text, @"[^0-9\.]", "");
+
+                if (string.IsNullOrWhiteSpace(newText))
+                    return "0";
+
+                if (double.TryParse(newText, out double value))
+                {
+                    if (value > 10000 || value < 0)
+                        return "0";
+                }
+                else
+                {
+                    return "0";
+                }
+
+                return newText;
+
+            }
+            catch (Exception e)
+            {
+
+            }
+
+            return "";
         }
     }
 }

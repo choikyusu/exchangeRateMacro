@@ -106,5 +106,17 @@ namespace kakao_bank_macro.Properties {
                 this["startMon"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string startMorning {
+            get {
+                return ((string)(this["startMorning"]));
+            }
+            set {
+                this["startMorning"] = value;
+            }
+        }
     }
 }

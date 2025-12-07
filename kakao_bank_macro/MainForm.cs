@@ -1,13 +1,19 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
+using System.IO;
+using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace kakao_bank_macro
 {
     public partial class MainForm : Form
     {
+        private readonly Queue<string> uiLogQueue = new Queue<string>();
+        private StreamWriter logWriter;
+
         int width;
         int height;
         [DllImport("user32.dll", SetLastError = true)]
@@ -161,6 +167,7 @@ namespace kakao_bank_macro
             0, 0, 0, 0,     // 위치/크기 유지
             SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
+
             //IntPtr hWnd1 = FindWindow(null, "최규수");
             //SetWindowPos(hWnd1, IntPtr.Zero, 0, 0, 380, 100, SWP_NOZORDER | SWP_SHOWWINDOW);
 
@@ -191,7 +198,6 @@ namespace kakao_bank_macro
                 t3.SetApartmentState(ApartmentState.STA);
                 t3.Start();
             }
-
         }
 
         private void test()
@@ -225,29 +231,46 @@ namespace kakao_bank_macro
             {
                 try
                 {
-                    //if (loopCounter % 3 == 0)
-                    //{
-                    //    getRateFromKakaoPay();
-                    //}
-
+                    var sw = System.Diagnostics.Stopwatch.StartNew(); // 시간 측정 시작
+                    DateTime now = DateTime.Now;
+                    if (DateTime.Now.Hour >= 7 && Properties.Settings.Default.startMorning != DateTime.Now.ToString("yyyy-MM-dd"))
+                    {
+                        Properties.Settings.Default.startMorning = DateTime.Now.ToString("yyyy-MM-dd");
+                        CBHighTextbox.Text = "";
+                        CBLowTextbox.Text = "";
+                    }
 
                     initHome();
 
+
+                    //if (DateTime.Now.Hour >= 9 && DateTime.Now.Minute >= 5 || (DateTime.Now.Hour >= 10 && DateTime.Now.Hour < 16))
+                    //    getRateFromKakaoPay();
                     getRateFromSwitchwon();
-                    //getRateFromKakaoBank();
-                    //getRateFromToss();
-                    //this.Invoke((Delegate)(() =>
-                    //{
-                    //    sendKakaotalkMessage("최규수");
-                    //    // sendKakaotalkMessage("NEW환도박방");
-                    //}));
+                    getRateFromKakaoBank();
+                    getRateFromToss();
+                    this.Invoke((Delegate)(() =>
+                    {
+                         // sendKakaotalkMessage("최규수");
+                        if (now.DayOfWeek >= DayOfWeek.Monday &&
+                           now.Hour >= 7 || now.DayOfWeek >= DayOfWeek.Tuesday)
+                        {
+                            sendKakaotalkMessage("NEW환도박방");
+                        }
+                    }));
 
 
                     saveValue();
 
                     loopCounter++;
 
-                    Thread.Sleep(3000);
+                    sw.Stop();
+                    int elapsedMs = (int)sw.ElapsedMilliseconds;   // 걸린 시간(ms)
+                    log("루프 1회 도는데 " + elapsedMs + "ms 소요");
+                    int targetMs = 20000; // 25초
+                    int remain = targetMs - elapsedMs;
+                    if (remain > 0)
+                        Thread.Sleep(remain);   // 남은 시간 만큼 Sleep
+
                 }
                 catch(Exception ex)
                 {
@@ -275,61 +298,85 @@ namespace kakao_bank_macro
 
                 try
                 {
-                    Bitmap bmp = new Bitmap(360, 120);
+                    Bitmap bmp = new Bitmap(200, 150);
                     using (Graphics g = Graphics.FromImage(bmp))
                     {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(360, 120));
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
 
-                    Thread.Sleep(3000);
+                    Thread.Sleep(2000);
 
-                    Bitmap bmp2 = new Bitmap(360, 120);
+                    Bitmap bmp2 = new Bitmap(200, 150);
                     using (Graphics g = Graphics.FromImage(bmp2))
                     {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(360, 120));
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
 
                     Thread.Sleep(3000);
 
-                    Bitmap bmp3 = new Bitmap(360, 120);
+                    Bitmap bmp3 = new Bitmap(200, 150);
                     using (Graphics g = Graphics.FromImage(bmp3))
                     {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(360, 120));
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
 
-                    Thread.Sleep(3000);
+                    Thread.Sleep(2000);
 
-                    Bitmap bmp4 = new Bitmap(360, 120);
+                    Bitmap bmp4 = new Bitmap(200, 150);
                     using (Graphics g = Graphics.FromImage(bmp4))
                     {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(360, 120));
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
                     
                     Thread.Sleep(3000);
 
-                    Bitmap bmp5 = new Bitmap(360, 120);
+                    Bitmap bmp5 = new Bitmap(200, 150);
                     using (Graphics g = Graphics.FromImage(bmp5))
                     {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(360, 120));
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
-                   
+
+                    Thread.Sleep(1000);
+
+                    Bitmap bmp6 = new Bitmap(200, 150);
+                    using (Graphics g = Graphics.FromImage(bmp6))
+                    {
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
+                    }
+
+                    Thread.Sleep(2000);
+
+                    Bitmap bmp7 = new Bitmap(200, 150);
+                    using (Graphics g = Graphics.FromImage(bmp7))
+                    {
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
+                    }
+
+                    Thread.Sleep(3000);
+
+                    Bitmap bmp8 = new Bitmap(200, 150);
+                    using (Graphics g = Graphics.FromImage(bmp8))
+                    {
+                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
+                    }
+
 
                     double a1 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp2);
                     double a2 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp3);
                     double a3 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp4);
                     double a4 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp5);
-
-
+                    double a5 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp6);
+                    double a6 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp7);
+                    double a7 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp8);
 
                     this.Invoke((Delegate)(() =>
                     {
-                        if (a1 <= 0.99 || a2 <= 0.99 || a3 <= 0.99 || a4 <= 0.99)
+                        if (a1 <= 0.99 || a2 <= 0.99 || a3 <= 0.99 || a4 <= 0.99 || a5 <= 0.99 || a6 <= 0.99 || a7 <= 0.99)
                         {
-                            sendKakaotalkAnyMessage("최규수", "정상 " + a1 + " , " + a2 + " , " + a3 + " , " + a4);
                         }
                         else
                         {
-                            sendKakaotalkAnyMessage("최규수", "확인필요!!! " + a1 + " , " + a2 + " , " + a3 + " , " + a4);
+                            sendKakaotalkAnyMessage("최규수", "확인필요!!! ");
                         }
                     }));
 
@@ -338,8 +385,11 @@ namespace kakao_bank_macro
                     bmp3.Dispose();
                     bmp4.Dispose();
                     bmp5.Dispose();
+                    bmp6.Dispose();
+                    bmp7.Dispose();
+                    bmp8.Dispose();
 
-                    Thread.Sleep(30000);
+                    Thread.Sleep(40000);
                 }
                 catch (Exception ex)
                 {
@@ -495,8 +545,10 @@ namespace kakao_bank_macro
                 if (TouchInjector.IsColorMatch(1850, 558, Color.FromArgb(99, 110, 215)))
                 {
                     log("카카오뱅크: 현재환율 클릭" + TouchInjector.getColor(1585, 778).ToString());
+                    System.Threading.Thread.Sleep(700);
                     TouchInjector.TouchClick(1722, 624);
-                    System.Threading.Thread.Sleep(100);
+                    System.Threading.Thread.Sleep(200);
+
                     break;
                 }
                 System.Threading.Thread.Sleep(300);
@@ -505,7 +557,20 @@ namespace kakao_bank_macro
             log("카카오뱅크: 현재환율 화면 진입" + TouchInjector.getColor(1766, 720).ToString());
             while (true)
             {
-                if (TouchInjector.IsColorMatch(1766, 720, Color.FromArgb(244, 244, 244))) break;
+                if (TouchInjector.IsColorMatch(1790, 540, Color.FromArgb(254, 227, 0)))
+                {
+                    log("카카오뱅크: 에러화면 발생" + TouchInjector.getColor(1790, 540).ToString());
+                    TouchInjector.TouchClick(1790, 540);
+
+                    System.Threading.Thread.Sleep(1000);
+
+                    TouchInjector.TouchClick(1722, 624);
+                }
+                else if (TouchInjector.IsColorMatch(1766, 720, Color.FromArgb(244, 244, 244)))
+                {
+
+                    break;
+                }
                 System.Threading.Thread.Sleep(300);
             }
 
@@ -585,6 +650,7 @@ namespace kakao_bank_macro
                 if (!TouchInjector.IsColorMatch(1851, 519, Color.FromArgb(99, 110, 215)))
                 {
                     log("카카오뱅크: <- 클릭" + TouchInjector.getColor(1851, 519).ToString());
+                    System.Threading.Thread.Sleep(700);
                     TouchInjector.TouchClick(1547, 113);
                     System.Threading.Thread.Sleep(200);
                 }
@@ -688,52 +754,9 @@ namespace kakao_bank_macro
                         }, 5, 100);
             Thread.Sleep(300);
 
-            Bitmap bmp3 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp3))
-            {
-                g.CopyFromScreen(1787, 465, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeTDRate = OcrHelper.Instance.RecognizeEnglish(bmp3);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox7.Image?.Dispose();
-                pictureBox7.Image = (Bitmap)bmp3.Clone();
-
-                tossTDLabel.Text = exchangeTDRate.Replace(",", "");
-            }));
-
-            Bitmap bmp4 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp4))
-            {
-                g.CopyFromScreen(1787, 545, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeTBRate = OcrHelper.Instance.RecognizeEnglish(bmp4);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox8.Image?.Dispose();
-                pictureBox8.Image = (Bitmap)bmp4.Clone();
-                tossTBLabel.Text = exchangeTBRate.Replace(",", "");
-            }));
-
-            Bitmap bmp5 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp5))
-            {
-                g.CopyFromScreen(1787, 787, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeINRate = OcrHelper.Instance.RecognizeEnglish(bmp5);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox9.Image?.Dispose();
-                pictureBox9.Image = (Bitmap)bmp5.Clone();
-
-                tossINLabel.Text = exchangeINRate.Replace(",", "");
-            }));
+            updateExchageRate(@"image\대만.png", pictureBox7, tossTDLabel);
+            updateExchageRate(@"image\태국.png", pictureBox8, tossTBLabel);
+            updateExchageRate(@"image\인도네시아.png", pictureBox9, tossINLabel);
 
             log("토스: 위로 스크롤");
             TouchInjector.TouchDrag(new (int x, int y)[]
@@ -742,63 +765,17 @@ namespace kakao_bank_macro
                                 (1714, 800),
                         }, 5, 100);
 
-            Thread.Sleep(500);
-
             TouchInjector.TouchDrag(new (int x, int y)[]
                         {
-                                (1714, 500),
+                                (1714, 354),
                                 (1714, 800),
                         }, 5, 100);
 
-            Thread.Sleep(500);
 
-            Bitmap bmp = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp))
-            {
-                g.CopyFromScreen(1787, 390, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox4.Image?.Dispose();
-                pictureBox4.Image = (Bitmap)bmp.Clone();
-                tossDLabel.Text = exchangeDRate.Replace(",", "");
-            }));
-
-            Bitmap bmp1 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp1))
-            {
-                g.CopyFromScreen(1787, 470, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeYRate = OcrHelper.Instance.RecognizeEnglish(bmp1);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox5.Image?.Dispose();
-                pictureBox5.Image = (Bitmap)bmp1.Clone();
-
-
-                tossYLabel.Text = exchangeYRate.Replace(",", "");
-            }));
-
-            Bitmap bmp2 = new Bitmap(110, 30);
-            using (Graphics g = Graphics.FromImage(bmp2))
-            {
-                g.CopyFromScreen(1787, 715, 0, 0, new Size(110, 30));
-            }
-
-            string exchangeVDRate = OcrHelper.Instance.RecognizeEnglish(bmp2);
-
-            this.Invoke((Delegate)(() =>
-            {
-                pictureBox6.Image?.Dispose();
-                pictureBox6.Image = (Bitmap)bmp2.Clone();
-                tossVDLabel.Text = exchangeVDRate.Replace(",", "");
-            }));
-
+            updateExchageRate(@"image\미국.png", pictureBox4, tossDLabel);
+            updateExchageRate(@"image\일본.png", pictureBox5, tossYLabel);
+            updateExchageRate(@"image\베트남.png", pictureBox6, tossVDLabel);
+            
             log("토스: 끝" + TouchInjector.getColor(1585, 778).ToString());
 
             //log("토스: 오류발생" + TouchInjector.getColor(1900, 56).ToString()); // 208 208 208
@@ -807,39 +784,65 @@ namespace kakao_bank_macro
             //log("토스: 전체 메뉴 클릭" + TouchInjector.getColor(1861, 790).ToString());
             //TouchInjector.TouchClickWithColor(1861, 790, Color.FromArgb(203, 208, 210));
 
-            
-
-            bmp.Dispose();
-            bmp1.Dispose();
-            bmp2.Dispose();
-            bmp3.Dispose();
-            bmp4.Dispose();
-            bmp5.Dispose();
-
             sw.Stop();
             log("토스: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
+        private void updateExchageRate (string path, PictureBox pictureBox, Label label )
+        {
+            var pos = ImageFinder.FindImageOnScreen(path, 0.85);
+
+            if (pos != null)
+            {
+                Bitmap bmp = new Bitmap(110, 30);
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.CopyFromScreen(1787, pos.Value.Y - 20, 0, 0, new Size(110, 30));
+                }
+
+                string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
+
+                if (exchangeDRate == "0")
+                    exchangeDRate = OcrHelper.Instance.RunOcr(bmp);
+
+                this.Invoke((Delegate)(() =>
+                {
+                    pictureBox.Image?.Dispose();
+                    pictureBox.Image = (Bitmap)bmp.Clone();
+                    label.Text = exchangeDRate.Replace(",", "");
+                }));
+            }
+        }
+
         private void getRateFromKakaoPay()
         {
-            TouchInjector.TouchClickWithColor(1700, 778, Color.FromArgb(255, 235, 0));
-
-            if (TouchInjector.IsColorMatch(1700, 778, Color.FromArgb(255, 235, 0)))
+            Stopwatch sw = Stopwatch.StartNew();   // 시작
+            log("카페: 시작" + TouchInjector.getColor(1713, 773).ToString());
+            TouchInjector.TouchClickWithColor(1713, 773, Color.FromArgb(255, 235, 0));
+            if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
             {
+                log("카페: 화면 미표시" + TouchInjector.getColor(1713, 773).ToString());
                 while (true)
                 {
-                    if (TouchInjector.IsColorMatch(1700, 778, Color.FromArgb(255, 235, 0))) TouchInjector.TouchClick(1700, 778);
-                    else break;
-                    System.Threading.Thread.Sleep(300);
+                    if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+                    {
+                        log("스위치: 시작 다시 클릭" + TouchInjector.getColor(1713, 773).ToString());
+                        TouchInjector.TouchClick(1713, 773);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    System.Threading.Thread.Sleep(3000);
                 }
             }
 
-            TouchInjector.TouchClickWithColor(1800, 107, Color.FromArgb(44, 48, 49));
-            TouchInjector.TouchClickWithColor(1567, 325, Color.FromArgb(252, 137, 0));
 
+            log("카페: 원->달러");
+            System.Threading.Thread.Sleep(800);
             while (true)
             {
-                if (TouchInjector.IsColorMatch(1806, 308, Color.FromArgb(254, 61, 78))) break;
+                if (TouchInjector.IsColorMatch(1806, 308, Color.FromArgb(254, 61, 76))) break;
                 System.Threading.Thread.Sleep(100);
             }
 
@@ -862,6 +865,9 @@ namespace kakao_bank_macro
                 CPCurDWRateLabel.Text = exchangeDWRate.Replace(",", "");
             }));
 
+
+            System.Threading.Thread.Sleep(800);
+            log("카페: 달러->원");
             TouchInjector.TouchClick(1577, 155);
 
 
@@ -890,16 +896,25 @@ namespace kakao_bank_macro
                 CPCurWDRateLabel.Text = exchangeWDRate.Replace(",", "");
             }));
 
-            TouchInjector.TouchClick(1833, 856);
-            TouchInjector.TouchClickWithColor(1554, 800, Color.FromArgb(114, 118, 118));
+            System.Threading.Thread.Sleep(800);
+            TouchInjector.TouchClick(1824, 163);
 
+            log("카페: 끝");
             while (true)
             {
-                if (!TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0))) TouchInjector.TouchClick(1833, 856);
+                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+                {
+                    log("카페: 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    System.Threading.Thread.Sleep(100);
+                }
                 else break;
-                System.Threading.Thread.Sleep(400);
+                System.Threading.Thread.Sleep(300);
             }
 
+
+            sw.Stop();
+            log("카페: sw.milliseconds: " + sw.ElapsedMilliseconds);
 
             bmp.Dispose();
             bmp1.Dispose();
@@ -928,7 +943,8 @@ namespace kakao_bank_macro
                 }
             }
 
-            
+            System.Threading.Thread.Sleep(1000);
+
             log("스위치: 환율 화면" + TouchInjector.getColor(1583, 340).ToString());
             while (true)
             {
@@ -937,6 +953,10 @@ namespace kakao_bank_macro
                 if(TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
                 {
                     TouchInjector.TouchClick(1803, 495);
+                }
+                else if (TouchInjector.IsColorMatch(1803, 529, Color.FromArgb(25, 35, 51)))
+                {
+                    TouchInjector.TouchClick(1803, 529);
                 }
                 else if (TouchInjector.IsColorMatch(1870, 765, Color.FromArgb(25, 35, 51)))
                 {
@@ -950,6 +970,8 @@ namespace kakao_bank_macro
             }
 
             log("스위치: 캡쳐");
+
+            System.Threading.Thread.Sleep(500);
 
             Bitmap bmp = new Bitmap(130, 35);
             using (Graphics g = Graphics.FromImage(bmp))
@@ -1069,15 +1091,6 @@ namespace kakao_bank_macro
             //하루: {hanaINLabel.Text} // 토루: {tossINLabel.Text}
             //하동: {hanaVDLabel.Text} // 토동: {tossVDLabel.Text}";
 
-            string compareText = $@"{CBCurRateLabel.Text}
-인달: {investDLabel.Text} 스달: {switchDLabel.Text}
-하달: {hanaDLabel.Text} 토달: {tossDLabel.Text}
-하엔: {hanaYLabel.Text} 토엔: {tossYLabel.Text}
-하대: {hanaTDLabel.Text} 토대: {tossTDLabel.Text}
-하바: {hanaTBLabel.Text} 토바: {tossTBLabel.Text}
-하루: {hanaINLabel.Text} 토루: {tossINLabel.Text}
-하동: {hanaVDLabel.Text} 토동: {tossVDLabel.Text}";
-
 
             double dGap = Double.Parse(hanaDLabel.Text) - Double.Parse(tossDLabel.Text);
             tossDGapLabel.Text = "(" + Math.Round(Math.Abs(dGap), 2) + ")";
@@ -1097,20 +1110,37 @@ namespace kakao_bank_macro
             double vdGap = Double.Parse(hanaVDLabel.Text) - Double.Parse(tossVDLabel.Text);
             tossVDGapLabel.Text = "(" + Math.Round(Math.Abs(vdGap), 2) + ")";
 
+            string multiLine = "";
+            DateTime nowTime = DateTime.Now;
+            if (false)
+            // if (DateTime.Now.Hour >= 9 && DateTime.Now.Minute >= 5 || (DateTime.Now.Hour >= 10 && DateTime.Now.Hour < 16))
+            {
+                multiLine = $@"카달: {CBCurRateLabel.Text}{CBCurGapLabel.Text}{bankText} 
+카저: {CBLowTextbox.Text}// 카고: {CBHighTextbox.Text}
+카패달>원: {CPCurWDRateLabel.Text}/원>달: {CPCurDWRateLabel.Text}
 
-            string multiLine = $@"카달: {CBCurRateLabel.Text}{CBCurGapLabel.Text}{bankText} 
+인달:{investDLabel.Text}/스달:{switchDLabel.Text}
+하달:{hanaDLabel.Text}/토달:{tossDLabel.Text}/{tossDGapLabel.Text} 
+하엔:{hanaYLabel.Text}/토엔:{tossYLabel.Text}/{tossYGapLabel.Text}
+하대:{hanaTDLabel.Text}/토대:{tossTDLabel.Text}/{tossTDGapLabel.Text}
+하바:{hanaTBLabel.Text}/토바:{tossTBLabel.Text}/{tossTBGapLabel.Text}
+하루:{hanaINLabel.Text}/토루:{tossINLabel.Text}/{tossINGapLabel.Text}
+하동:{hanaVDLabel.Text}/토동:{tossVDLabel.Text}/{tossVDGapLabel.Text}";
+            }
+            else
+            {
+                multiLine = $@"카달: {CBCurRateLabel.Text}{CBCurGapLabel.Text}{bankText} 
 카저: {CBLowTextbox.Text}// 카고: {CBHighTextbox.Text}
 
-인달: {investDLabel.Text}/스달: {switchDLabel.Text}
-하달: {hanaDLabel.Text}/토달: {tossDLabel.Text}/{tossDGapLabel.Text} 
-하엔: {hanaYLabel.Text}/토엔: {tossYLabel.Text}/{tossYGapLabel.Text}
-하대: {hanaTDLabel.Text}/토대: {tossTDLabel.Text}/{tossTDGapLabel.Text}
-하바: {hanaTBLabel.Text}/토바: {tossTBLabel.Text}/{tossTBGapLabel.Text}
-하루: {hanaINLabel.Text}/토루: {tossINLabel.Text}/{tossINGapLabel.Text}
-하동: {hanaVDLabel.Text}/토동: {tossVDLabel.Text}/{tossVDGapLabel.Text}";
-
-                prevHanaMessage = compareText;
-                sendToKakaotalk(roomName, now +"\r\n"+ multiLine);
+인달:{investDLabel.Text}/스달:{switchDLabel.Text}
+하달:{hanaDLabel.Text}/토달:{tossDLabel.Text}/{tossDGapLabel.Text} 
+하엔:{hanaYLabel.Text}/토엔:{tossYLabel.Text}/{tossYGapLabel.Text}
+하대:{hanaTDLabel.Text}/토대:{tossTDLabel.Text}/{tossTDGapLabel.Text}
+하바:{hanaTBLabel.Text}/토바:{tossTBLabel.Text}/{tossTBGapLabel.Text}
+하루:{hanaINLabel.Text}/토루:{tossINLabel.Text}/{tossINGapLabel.Text}
+하동:{hanaVDLabel.Text}/토동:{tossVDLabel.Text}/{tossVDGapLabel.Text}";
+            }
+                sendToKakaotalk(roomName, now + "\r\n" + multiLine);
                 Thread.Sleep(200);
                 PostMessage(textBoxHwnd, WM_KEYDOWN, (IntPtr)VK_ENTER, IntPtr.Zero);
                 PostMessage(textBoxHwnd, WM_KEYUP, (IntPtr)VK_ENTER, IntPtr.Zero);
@@ -1236,6 +1266,13 @@ namespace kakao_bank_macro
 
             await webView22.EnsureCoreWebView2Async(null);
             webView22.Source = new Uri("https://kr.investing.com/currencies/exchange-rates-table");
+
+            Directory.CreateDirectory(@"C:\log");
+
+            logWriter = new StreamWriter(@"C:\log\log1.txt", append: true, Encoding.UTF8)
+            {
+                AutoFlush = false   // 성능↑: 직접 Flush 하거나 내부 버퍼가 찰 때만 기록
+            };
         }
 
 
@@ -1319,15 +1356,33 @@ namespace kakao_bank_macro
 
         private void log(string msg)
         {
-            this.Invoke((Delegate)(() =>
+            // 1) 파일 로그 (빠르게 비동기 처리)
+            Task.Run(() =>
             {
-                logTextBox.Text = msg + "\r\n" + logTextBox.Text;
+                lock (logWriter)   // 동시 접근 방지
+                {
+                    logWriter.WriteLine($"{DateTime.Now:HH:mm:ss.fff} - {msg}");
+                    // AutoFlush=false이므로 너무 자주 Flush하지 않음 → 성능↑
+                }
+            });
+
+            // 2) UI 로그(최대 10줄 유지)
+            this.BeginInvoke((MethodInvoker)(() =>
+            {
+                uiLogQueue.Enqueue(msg);
+                if (uiLogQueue.Count > 10)
+                    uiLogQueue.Dequeue();
+
+                logTextBox.Text = string.Join(Environment.NewLine, uiLogQueue.Reverse());
             }));
         }
 
-     
+
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            logWriter?.Flush();
+            logWriter?.Close();
+
             isRunning = false;
         }
 
