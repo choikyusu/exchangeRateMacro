@@ -189,9 +189,9 @@ public static class TouchInjector
         InjectTouchInput(1, new[] { contact });
     }
 
-    public static void TouchClickWithColor(int x, int y, Color targetColor)
+    public static void TouchClickWithColor(int x, int y, Color targetColor, CancellationToken token)
     {
-        while(true)
+        while (!token.IsCancellationRequested)
         {
             if (IsColorMatch(x, y, targetColor))
                 break;

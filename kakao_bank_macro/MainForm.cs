@@ -1,11 +1,20 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using YamlDotNet.Core.Tokens;
 
 namespace kakao_bank_macro
 {
     public partial class MainForm : Form
     {
+        private int errorCount = 0;
+
+        private CancellationTokenSource ctsMain;
+
+        // t, t2 스레드 핸들 저장
+        private Thread threadMain;
+        private Thread threadWeb;
+
         int width;
         [DllImport("user32.dll", SetLastError = true)]
         static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
@@ -38,6 +47,7 @@ namespace kakao_bank_macro
 
         private bool isRunning = false;
 
+        private bool needInitApp = false;
 
 
         public MainForm()
@@ -50,8 +60,8 @@ namespace kakao_bank_macro
         private void startButton_Click(object sender, EventArgs e)
         {
 
-            timerLabel.Text =  DateTime.Now.ToString("HH시 mm분 ss초");
-            
+            timerLabel.Text = DateTime.Now.ToString("HH시 mm분 ss초");
+
 
             width = Screen.PrimaryScreen.Bounds.Width;
 
@@ -63,25 +73,39 @@ namespace kakao_bank_macro
             0, 0, 0, 0,     // 위치/크기 유지
             SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
+            needInitApp = checkBoxInitApp.Checked;
 
-            if (!isRunning)
+
+            if (ctsMain == null)
             {
                 isRunning = true;
-                Thread t = new Thread(async () => await RunAutomationLoopAsync());
-                t.SetApartmentState(ApartmentState.STA);
-                t.Start();
+                ctsMain = new CancellationTokenSource();
 
-                Thread t2 = new Thread(async () => await RunAutomationWebLoopAsync());
-                t2.SetApartmentState(ApartmentState.STA);
-                t2.Start();
+                threadMain = new Thread(() => RunAutomationLoopAsync(ctsMain.Token).Wait())
+                {
+                    IsBackground = true
+                };
+                threadMain.SetApartmentState(ApartmentState.STA);
+                threadMain.Start();
 
-                Thread t3 = new Thread(async () => await RunAutomationCheckErrorAsync());
+                threadWeb = new Thread(() => RunAutomationWebLoopAsync(ctsMain.Token).Wait())
+                {
+                    IsBackground = true
+                };
+                threadWeb.SetApartmentState(ApartmentState.STA);
+                threadWeb.Start();
+
+                // 감시자는 기존처럼 실행 (독립 실행)
+                Thread t3 = new Thread(async () => await RunAutomationCheckErrorAsync())
+                {
+                    IsBackground = true
+                };
                 t3.SetApartmentState(ApartmentState.STA);
                 t3.Start();
             }
         }
 
-        private async Task RunAutomationLoopAsync()
+        private async Task RunAutomationLoopAsync(CancellationToken token)
         {
             IntPtr hWnd = FindWindow(null, "Samsung Flow");
             // IntPtr hWnd = FindWindow(null, "Galaxy S10");
@@ -90,11 +114,16 @@ namespace kakao_bank_macro
                 SetWindowPos(hWnd, IntPtr.Zero, width - 408, 0, 408, 900, SWP_NOZORDER | SWP_SHOWWINDOW);
             }));
 
-            while (isRunning)
+            if (needInitApp)
+                await initPhoneAsync(token); // 토큰 전달
+
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    var sw = System.Diagnostics.Stopwatch.StartNew(); // 시간 측정 시작
+                    if (token.IsCancellationRequested) break;
+
+                    var sw = Stopwatch.StartNew(); // 시간 측정 시작
                     DateTime now = DateTime.Now;
                     if (DateTime.Now.Hour >= 7 && Properties.Settings.Default.startMorning != DateTime.Now.ToString("yyyy-MM-dd"))
                     {
@@ -103,21 +132,32 @@ namespace kakao_bank_macro
                         CBLowTextbox.Text = "";
                     }
 
-                    initHome();
-
+                    initHome(token); // 토큰 전달
+                    if (token.IsCancellationRequested) break;
 
                     //if (DateTime.Now.Hour >= 9 && DateTime.Now.Minute >= 5 || (DateTime.Now.Hour >= 10 && DateTime.Now.Hour < 16))
-                    //    getRateFromKakaoPay();
-                    getRateFromSwitchwon();
-                    getRateFromKakaoBank();
-                    getRateFromToss();
+                    //    getRateFromKakaoPay(token);
+
+                    getRateFromSwitchwon(token); // 토큰 전달
+                    if (token.IsCancellationRequested) break;
+
+                    getRateFromKakaoBank(token); // 토큰 전달
+                    if (token.IsCancellationRequested) break;
+
+                    getRateFromToss(token); // 토큰 전달
+                    if (token.IsCancellationRequested) break;
+
                     this.Invoke((Delegate)(() =>
                     {
-                         // sendKakaotalkMessage("최규수");
+                        // sendKakaotalkMessage("최규수");
                         if (now.DayOfWeek >= DayOfWeek.Monday &&
                            now.Hour >= 7 || now.DayOfWeek >= DayOfWeek.Tuesday)
                         {
                             sendKakaotalkMessage("NEW환도박방");
+                        }
+                        else
+                        {
+                            Logger.Instance.Log("아직 시간 안됨");
                         }
                     }));
 
@@ -127,33 +167,437 @@ namespace kakao_bank_macro
                     sw.Stop();
                     int elapsedMs = (int)sw.ElapsedMilliseconds;   // 걸린 시간(ms)
                     Logger.Instance.Log("루프 1회 도는데 " + elapsedMs + "ms 소요");
-                    int targetMs = 20000; // 25초
-                    int remain = targetMs - elapsedMs;
-                    if (remain > 0)
-                        Thread.Sleep(remain);   // 남은 시간 만큼 Sleep
+                    //int targetMs = 20000; // 20초 주기
+                    //int remain = targetMs - elapsedMs;
+
+                    //if (remain > 0)
+                    //{
+                    //    // WaitOne이 true를 반환하면 취소 신호를 받은 것 -> break
+                    //    if (token.WaitHandle.WaitOne(remain)) break;
+                    //}
 
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
+                    if (token.IsCancellationRequested) break;
                     var msg = ex.InnerException?.ToString() ?? ex.ToString();
                     Task.Run(() => MessageBox.Show(msg)); // UI 스레드 강요 없음
                 }
 
             }
+            Logger.Instance.Log("RunAutomationLoopAsync 루프 종료됨");
         }
 
-        private async Task RunAutomationWebLoopAsync()
+        // CancellationToken 추가 및 Sleep -> WaitOne 변경
+        private async Task initPhoneAsync(CancellationToken token)
         {
-            while (isRunning)
+            Logger.Instance.Log("초기화: 폰 초기화시작");
+
+            // Task.Delay도 취소 토큰 지원
+            try { await Task.Delay(3000, token); } catch (TaskCanceledException) { return; }
+
+            if (token.IsCancellationRequested) return;
+
+            Logger.Instance.Log("초기화: 탭전환 클릭");
+            TouchInjector.TouchClick(1597, 851);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+            Logger.Instance.Log("초기화: 모두 닫기 클릭");
+            TouchInjector.TouchClick(1717, 689);
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("초기화: 탭전환 클릭");
+            TouchInjector.TouchClick(1597, 851);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+            Logger.Instance.Log("초기화: 자물쇠 클릭");
+            TouchInjector.TouchClick(1807, 585);
+            if (token.WaitHandle.WaitOne(2000)) return;
+
+            Logger.Instance.Log("초기화: 모두 닫기 클릭");
+            TouchInjector.TouchClick(1717, 689);
+            if (token.WaitHandle.WaitOne(2000)) return;
+
+            initSwitchwonApp(token);
+            if (token.IsCancellationRequested) return;
+
+            initKakaoBankApp(token);
+            if (token.IsCancellationRequested) return;
+
+            initTossApp(token);
+            if (token.IsCancellationRequested) return;
+
+
+            Logger.Instance.Log("초기화: 탭전환 클릭");
+            TouchInjector.TouchClick(1597, 851);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+            Logger.Instance.Log("초기화: 토스앱 클릭");
+            TouchInjector.TouchClick(1719, 193);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+            Logger.Instance.Log("초기화: 토스앱 고정");
+            TouchInjector.TouchClick(1733, 333);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+            Logger.Instance.Log("초기화: 홈 클릭");
+            TouchInjector.TouchClick(1713, 853);
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+
+            Logger.Instance.Log("초기화: 세팅 끝");
+        }
+
+        private void initKakaoBankApp(CancellationToken token)
+        {
+            if (token.WaitHandle.WaitOne(1000)) return;
+            Logger.Instance.Log("초기화: 카카오뱅크 시작" + TouchInjector.getColor(1585, 778).ToString());
+            TouchInjector.TouchClickWithColor(1585, 778, Color.FromArgb(254, 227, 0), token);
+
+            if (TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(14, 168, 255)))
             {
+                Logger.Instance.Log("초기화: 카카오뱅크 시작안됨" + TouchInjector.getColor(1863, 783).ToString());
+                while (true)
+                {
+                    if (token.IsCancellationRequested) return; // 취소 확인
+
+                    if (TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
+                    {
+                        Logger.Instance.Log("초기화: 카카오뱅크 시작 다시 클릭" + TouchInjector.getColor(1863, 783).ToString());
+                        TouchInjector.TouchClick(1585, 778);
+                    }
+                    else break;
+                    if (token.WaitHandle.WaitOne(1000)) return;
+                }
+            }
+
+
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (TouchInjector.IsColorMatch(1890, 867, Color.FromArgb(0, 0, 0)))
+                {
+                    Logger.Instance.Log("초기화: 카카오뱅크 검은색화면 표시" + TouchInjector.getColor(1890, 867).ToString());
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(100)) return;
+            }
+
+            Logger.Instance.Log("초기화: 카카오뱅크 터치시작");
+            TouchInjector.TouchDrag(new (int x, int y)[]
+                        {
+                            (1622, 543),
+                            (1822, 543),
+                            (1617, 722),
+                            (1822, 722)
+                        }, 7, 20);
+
+
+            Logger.Instance.Log("초기화: 카카오뱅크 환율화면 진입 시도");
+
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (TouchInjector.IsColorMatch(1890, 867, Color.FromArgb(0, 0, 0)) && TouchInjector.IsColorMatch(1763, 449, Color.FromArgb(0, 0, 0)))
+                {
+                    Logger.Instance.Log("초기화: 카카오뱅크 검은색화면 표시" + TouchInjector.getColor(1890, 867).ToString());
+
+                    Logger.Instance.Log("초기화: 카카오뱅크 터치시작");
+                    TouchInjector.TouchDrag(new (int x, int y)[]
+                            {
+                            (1622, 543),
+                            (1822, 543),
+                            (1617, 722),
+                            (1822, 722)
+                            }, 7, 20);
+
+
+                    if (token.WaitHandle.WaitOne(5000)) return;
+
+                }
+                else if (TouchInjector.IsColorMatch(1673, 800, Color.FromArgb(255, 255, 255))) // 팝업떴음
+                {
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                    Logger.Instance.Log("초기화: 팝업 닫기" + TouchInjector.getColor(1600, 803).ToString());
+                    TouchInjector.TouchClick(1600, 803);
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                }
+                else if (TouchInjector.IsColorMatch(1709, 396, Color.FromArgb(254, 227, 0)) && TouchInjector.IsColorMatch(1709, 541, Color.FromArgb(254, 227, 0)) 
+                    && TouchInjector.IsColorMatch(1709, 567, Color.FromArgb(236, 208, 194)) && TouchInjector.IsColorMatch(1733, 668, Color.FromArgb(236, 208, 194))) // 광고떴음
+                {
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                    Logger.Instance.Log("초기화: 팝업 닫기" + TouchInjector.getColor(1600, 803).ToString());
+                    TouchInjector.TouchClick(1869, 176);
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                }
+                else if (TouchInjector.IsColorMatch(1823, 629, Color.FromArgb(236, 208, 194)))
+                {
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                    Logger.Instance.Log("초기화: 카카오뱅크 환율화면 진입" + TouchInjector.getColor(1718, 486).ToString());
+                    TouchInjector.TouchClick(1823, 629);
+                    break;
+                }
+                else if (TouchInjector.IsColorMatch(1718, 486, Color.FromArgb(236, 208, 194)))
+                {
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                    Logger.Instance.Log("초기화: 카카오뱅크 환율화면 진입" + TouchInjector.getColor(1718, 486).ToString());
+                    TouchInjector.TouchClick(1718, 486);
+                    break;
+                }
+                else if (TouchInjector.IsColorMatch(1718, 414, Color.FromArgb(236, 208, 194)))
+                {
+                    if (token.WaitHandle.WaitOne(2000)) return;
+                    Logger.Instance.Log("초기화: 카카오뱅크 환율화면 진입" + TouchInjector.getColor(1718, 486).ToString());
+                    TouchInjector.TouchClick(1718, 414);
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(500)) return;
+            }
+
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                Logger.Instance.Log("초기화: 카카오뱅크 환율 기다리는중" + TouchInjector.getColor(1887, 109).ToString());
+                if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
+                {
+                    Logger.Instance.Log("초기화: 카카오뱅크 환율화면 떴다" + TouchInjector.getColor(1887, 109).ToString());
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(100)) return;
+            }
+
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("초기화: 카카오뱅크 끝");
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+                {
+                    Logger.Instance.Log("초기화: 카카오뱅크 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    if (token.WaitHandle.WaitOne(100)) return;
+                }
+                else break;
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+        }
+
+        private void initTossApp(CancellationToken token)
+        {
+            if (token.WaitHandle.WaitOne(1000)) return;
+            Logger.Instance.Log("초기화: 토스 시작");
+
+            if (!TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
+            {
+                Logger.Instance.Log("초기화: 토스 검은색 화면인듯" + TouchInjector.getColor(1863, 783).ToString());
+                while (true)
+                {
+                    if (token.IsCancellationRequested) return;
+
+                    if (!TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
+                    {
+                        Logger.Instance.Log("초기화: 토스 검은색 화면 빽버튼" + TouchInjector.getColor(1863, 783).ToString());
+                        TouchInjector.TouchClick(1833, 856);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    if (token.WaitHandle.WaitOne(1000)) return;
+                }
+            }
+
+            Logger.Instance.Log("초기화: 토스 시작버튼 클릭" + TouchInjector.getColor(1863, 783).ToString());
+
+            TouchInjector.TouchClickWithColor(1863, 783, Color.FromArgb(17, 170, 255), token);
+
+
+            if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+            {
+                while (true)
+                {
+                    if (token.IsCancellationRequested) return;
+
+                    if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+                    {
+                        Logger.Instance.Log("초기화: 토스 시작버튼 반복" + TouchInjector.getColor(1585, 778).ToString());
+                        TouchInjector.TouchClick(1863, 783);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    if (token.WaitHandle.WaitOne(1000)) return;
+                }
+            }
+
+
+            Logger.Instance.Log("초기화: 토스 전체 메뉴 클릭" + TouchInjector.getColor(1656, 190).ToString());
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (TouchInjector.IsColorMatch(1656, 190, Color.FromArgb(242, 244, 245)))
+                {
+                    Logger.Instance.Log("초기화: 토스 전체 메뉴 클릭 반복 클릭" + TouchInjector.getColor(1656, 190).ToString());
+                    TouchInjector.TouchClick(1860, 794);
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(1000)) return;
+            }
+
+            if (token.WaitHandle.WaitOne(3000)) return;
+
+
+            Logger.Instance.Log("토스: 토스뱅크 환전하기 누름" + TouchInjector.getColor(1786, 183).ToString());
+            TouchInjector.TouchClick(1554, 296);
+            if (token.WaitHandle.WaitOne(100)) return;
+
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
+                {
+                    Logger.Instance.Log("토스: 토스뱅크 진입" + TouchInjector.getColor(1887, 109).ToString());
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+
+            Logger.Instance.Log("초기화: 토스뱅크 환율 화면 진입" + TouchInjector.getColor(1887, 109).ToString());
+
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(10, 15, 20)))
+                {
+                    Logger.Instance.Log("초기화: 토스뱅크 환율진입중" + TouchInjector.getColor(1887, 109).ToString());
+                    break;
+                }
+
+                Logger.Instance.Log("초기화: 토스뱅크 환율 화면 기다리는중" + TouchInjector.getColor(1887, 109).ToString());
+
+
+                if (token.WaitHandle.WaitOne(400)) return;
+            }
+
+            if (token.WaitHandle.WaitOne(1700)) return;
+
+            Logger.Instance.Log("초기화: 토스 끝");
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+                {
+                    Logger.Instance.Log("초기화: 토스 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    if (token.WaitHandle.WaitOne(100)) return;
+                }
+                else break;
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+        }
+
+        private void initSwitchwonApp(CancellationToken token)
+        {
+            Logger.Instance.Log("초기화: 스위치원 시작" + TouchInjector.getColor(1790, 775).ToString());
+            TouchInjector.TouchClickWithColor(1790, 775, Color.FromArgb(249, 169, 72), token);
+            if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+            {
+                Logger.Instance.Log("초기화: 스위치원 화면 미표시" + TouchInjector.getColor(1790, 775).ToString());
+                while (true)
+                {
+                    if (token.IsCancellationRequested) return;
+
+                    if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
+                    {
+                        Logger.Instance.Log("초기화: 스위치원 시작 다시 클릭" + TouchInjector.getColor(1790, 775).ToString());
+                        TouchInjector.TouchClick(1790, 775);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    if (token.WaitHandle.WaitOne(3000)) return;
+                }
+            }
+
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("초기화: 스위치원  환율 화면" + TouchInjector.getColor(1583, 340).ToString());
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                // Thread.Sleep(5000);
+                // Logger.Instance.Log(TouchInjector.getColor(1583, 340).ToString());
+                if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원  광고 닫기1");
+                    TouchInjector.TouchClick(1803, 495);
+                }
+                else if (TouchInjector.IsColorMatch(1803, 529, Color.FromArgb(25, 35, 51)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원 광고 닫기2");
+                    TouchInjector.TouchClick(1803, 529);
+                }
+                else if (TouchInjector.IsColorMatch(1870, 765, Color.FromArgb(25, 35, 51)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원  광고 닫기3");
+                    TouchInjector.TouchClick(1870, 765);
+                }
+                else if (TouchInjector.IsColorMatch(1583, 340, Color.FromArgb(67, 71, 77)))
+                {
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+
+            Logger.Instance.Log("초기화: 스위치원  끝");
+            while (true)
+            {
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원  홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+                    TouchInjector.TouchClick(1721, 856);
+                    if (token.WaitHandle.WaitOne(100)) return;
+                }
+                else break;
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+        }
+
+        private async Task RunAutomationWebLoopAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                if (token.IsCancellationRequested) break;
+
                 await updateHanaRate();
 
-                Thread.Sleep(5000);
+                // [중요] Thread.Sleep 대신 WaitHandle 사용
+                // 5초 대기 중 취소되면 즉시 루프 종료
+                if (token.WaitHandle.WaitOne(5000)) break;
             }
+
+            Logger.Instance.Log("RunAutomationWebLoopAsync 루프 종료됨");
         }
 
         private async Task RunAutomationCheckErrorAsync()
         {
+            // 이 함수는 ctsMain 토큰과 독립적으로 실행되는 감시자 스레드입니다.
+            // 필요하다면 여기도 종료 로직을 개선할 수 있지만, 
+            // 요청하신 "RunAutomationLoopAsync 하위"에 포함되지 않아 isRunning 플래그 유지합니다.
             while (isRunning)
             {
 
@@ -188,7 +632,7 @@ namespace kakao_bank_macro
                     {
                         g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
                     }
-                    
+
                     Thread.Sleep(3000);
 
                     Bitmap bmp5 = new Bitmap(200, 150);
@@ -230,16 +674,34 @@ namespace kakao_bank_macro
                     double a6 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp7);
                     double a7 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp8);
 
+                    bool shouldRestart = false;
+
                     this.Invoke((Delegate)(() =>
                     {
                         if (a1 <= 0.99 || a2 <= 0.99 || a3 <= 0.99 || a4 <= 0.99 || a5 <= 0.99 || a6 <= 0.99 || a7 <= 0.99)
                         {
+                            errorCount = 0;
                         }
                         else
                         {
                             sendKakaotalkAnyMessage("최규수", "확인필요!!! ");
+                            errorCount++;
+
+                            if (errorCount >= 5)
+                            {
+                                Logger.Instance.Log("⚠ 연속 5회 검사 오류 → 메인 스레드 재시작");
+
+                                needInitApp = true;
+                                shouldRestart = true;
+                                errorCount = 0;
+                            }
                         }
                     }));
+
+                    if (shouldRestart)
+                    {
+                        RestartMainThreads();
+                    }
 
                     bmp.Dispose();
                     bmp2.Dispose();
@@ -254,26 +716,72 @@ namespace kakao_bank_macro
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message.ToString());
-
+                    Logger.Instance.Log("감시 스레드 에러: " + ex.Message);
                 }
             }
         }
 
-        private void initHome()
+        private void RestartMainThreads()
+        {
+            Logger.Instance.Log("메인 루프 재시작 시작");
+
+            // 1) 기존 루프 취소
+            if (ctsMain != null)
+            {
+                ctsMain.Cancel(); // 토큰 취소 -> 스레드 내부 WaitOne 해제 및 break 트리거
+
+                // 중요: 스레드가 실제로 종료될 때까지 기다림 (WaitOne덕분에 금방 종료됨)
+                if (threadMain != null && threadMain.IsAlive)
+                {
+                    threadMain.Join();
+                }
+                if (threadWeb != null && threadWeb.IsAlive)
+                {
+                    threadWeb.Join();
+                }
+                ctsMain.Dispose();
+            }
+
+            // 2) 잠시 대기
+            Thread.Sleep(500);
+
+            // 3) 새로운 토큰 생성
+            ctsMain = new CancellationTokenSource();
+
+            // 4) 메인 루프 재시작
+            threadMain = new Thread(() => RunAutomationLoopAsync(ctsMain.Token).Wait())
+            {
+                IsBackground = true
+            };
+            threadMain.SetApartmentState(ApartmentState.STA);
+            threadMain.Start();
+
+            threadWeb = new Thread(() => RunAutomationWebLoopAsync(ctsMain.Token).Wait())
+            {
+                IsBackground = true
+            };
+            threadWeb.SetApartmentState(ApartmentState.STA);
+            threadWeb.Start();
+
+            Logger.Instance.Log("메인 루프 재시작 완료 (t3는 유지)");
+        }
+
+        private void initHome(CancellationToken token)
         {
             Stopwatch sw = Stopwatch.StartNew();   // 시작
             Logger.Instance.Log("시작: 홈으로 이동");
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
                 {
                     Logger.Instance.Log("시작: 홈버튼" + TouchInjector.getColor(1573, 766).ToString());
                     TouchInjector.TouchClick(1721, 856);
-                    System.Threading.Thread.Sleep(100);
+                    if (token.WaitHandle.WaitOne(100)) return;
                 }
                 else break;
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
             sw.Stop();
@@ -311,24 +819,26 @@ namespace kakao_bank_macro
             }));
         }
 
-        private void getRateFromKakaoBank()
+        private void getRateFromKakaoBank(CancellationToken token)
         {
             Stopwatch sw = Stopwatch.StartNew();   // 시작
             Logger.Instance.Log("카카오뱅크: 시작" + TouchInjector.getColor(1585, 778).ToString());
-            TouchInjector.TouchClickWithColor(1585, 778, Color.FromArgb(254, 227, 0));
+            TouchInjector.TouchClickWithColor(1585, 778, Color.FromArgb(254, 227, 0), token);
 
             if (TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(14, 168, 255)))
             {
                 Logger.Instance.Log("카카오뱅크: 시작안됨" + TouchInjector.getColor(1863, 783).ToString());
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
                     {
                         Logger.Instance.Log("카카오뱅크: 시작 다시 클릭" + TouchInjector.getColor(1863, 783).ToString());
                         TouchInjector.TouchClick(1585, 778);
                     }
                     else break;
-                    System.Threading.Thread.Sleep(300);
+                    if (token.WaitHandle.WaitOne(300)) return;
                 }
             }
 
@@ -336,36 +846,39 @@ namespace kakao_bank_macro
             Logger.Instance.Log("카카오뱅크: 화면 진입" + TouchInjector.getColor(1850, 558).ToString());
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (TouchInjector.IsColorMatch(1850, 558, Color.FromArgb(99, 110, 215)))
                 {
+                    if (token.WaitHandle.WaitOne(500)) return;
                     Logger.Instance.Log("카카오뱅크: 현재환율 클릭" + TouchInjector.getColor(1585, 778).ToString());
-                    System.Threading.Thread.Sleep(700);
                     TouchInjector.TouchClick(1722, 624);
-                    System.Threading.Thread.Sleep(200);
+                    if (token.WaitHandle.WaitOne(500)) return;
 
                     break;
                 }
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
             Logger.Instance.Log("카카오뱅크: 현재환율 화면 진입" + TouchInjector.getColor(1766, 720).ToString());
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (TouchInjector.IsColorMatch(1790, 540, Color.FromArgb(254, 227, 0)))
                 {
                     Logger.Instance.Log("카카오뱅크: 에러화면 발생" + TouchInjector.getColor(1790, 540).ToString());
                     TouchInjector.TouchClick(1790, 540);
 
-                    System.Threading.Thread.Sleep(1000);
+                    if (token.WaitHandle.WaitOne(1000)) return;
 
                     TouchInjector.TouchClick(1722, 624);
                 }
                 else if (TouchInjector.IsColorMatch(1766, 720, Color.FromArgb(244, 244, 244)))
                 {
-
                     break;
                 }
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
             Logger.Instance.Log("카카오뱅크: 현재환율 화면");
@@ -441,32 +954,41 @@ namespace kakao_bank_macro
 
             while (true)
             {
-                if (!TouchInjector.IsColorMatch(1851, 519, Color.FromArgb(99, 110, 215)))
+                if (token.IsCancellationRequested) return;
+
+                if (TouchInjector.IsColorMatch(1754, 471, Color.FromArgb(236, 208, 194)))
+                {
+                    Logger.Instance.Log("카카오뱅크: 달러박스 밖으로 나와버렸음" + TouchInjector.getColor(1754, 471).ToString());
+                    TouchInjector.TouchClick(1754, 471);
+                    if (token.WaitHandle.WaitOne(900)) return;
+                }
+                else if (!TouchInjector.IsColorMatch(1851, 519, Color.FromArgb(99, 110, 215)))
                 {
                     Logger.Instance.Log("카카오뱅크: <- 클릭" + TouchInjector.getColor(1851, 519).ToString());
-                    System.Threading.Thread.Sleep(700);
-                    TouchInjector.TouchClick(1547, 113);
-                    System.Threading.Thread.Sleep(200);
+                    TouchInjector.TouchClick(1525, 113);
+                    if (token.WaitHandle.WaitOne(500)) return;
                 }
+
                 else break;
 
-                System.Threading.Thread.Sleep(300);
-
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
             Logger.Instance.Log("카카오뱅크: 달러박스 화면" + TouchInjector.getColor(1851, 519).ToString());
 
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (!TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
                 {
                     Logger.Instance.Log("카카오뱅크: 홈버튼" + TouchInjector.getColor(1585, 778).ToString());
                     TouchInjector.TouchClick(1721, 856);
-                    System.Threading.Thread.Sleep(200);
+                    if (token.WaitHandle.WaitOne(200)) return;
                 }
                 else break;
 
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
 
             }
             bmp.Dispose();
@@ -475,7 +997,7 @@ namespace kakao_bank_macro
             Logger.Instance.Log("카뱅: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
-        private void getRateFromToss()
+        private void getRateFromToss(CancellationToken token)
         {
             Stopwatch sw = Stopwatch.StartNew();   // 시작
             Logger.Instance.Log("토스: 시작");
@@ -484,6 +1006,8 @@ namespace kakao_bank_macro
                 Logger.Instance.Log("토스: 검은색 화면인듯" + TouchInjector.getColor(1863, 783).ToString());
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (!TouchInjector.IsColorMatch(1863, 783, Color.FromArgb(17, 170, 255)))
                     {
                         Logger.Instance.Log("토스: 검은색 화면 빽버튼" + TouchInjector.getColor(1863, 783).ToString());
@@ -493,20 +1017,22 @@ namespace kakao_bank_macro
                     {
                         break;
                     }
-                    System.Threading.Thread.Sleep(300);
+                    if (token.WaitHandle.WaitOne(300)) return;
                 }
             }
 
             Logger.Instance.Log("토스: 시작버튼 클릭" + TouchInjector.getColor(1863, 783).ToString());
 
-            TouchInjector.TouchClickWithColor(1863, 783, Color.FromArgb(17, 170, 255));
+            TouchInjector.TouchClickWithColor(1863, 783, Color.FromArgb(17, 170, 255), token);
 
-            System.Threading.Thread.Sleep(300);
+            if (token.WaitHandle.WaitOne(300)) return;
 
             if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
             {
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
                     {
                         Logger.Instance.Log("토스: 시작버튼 반복" + TouchInjector.getColor(1886, 108).ToString());
@@ -516,7 +1042,7 @@ namespace kakao_bank_macro
                     {
                         break;
                     }
-                    System.Threading.Thread.Sleep(300);
+                    if (token.WaitHandle.WaitOne(300)) return;
                 }
             }
 
@@ -525,28 +1051,30 @@ namespace kakao_bank_macro
             {
                 Logger.Instance.Log("토스: 토스뱅크 환전하기 누름" + TouchInjector.getColor(1786, 183).ToString());
                 TouchInjector.TouchClick(1554, 296);
-                System.Threading.Thread.Sleep(100);
+                if (token.WaitHandle.WaitOne(100)) return;
 
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
                     {
                         Logger.Instance.Log("토스: 토스뱅크 진입" + TouchInjector.getColor(1887, 109).ToString());
                         break;
                     }
-                    System.Threading.Thread.Sleep(300);
+                    if (token.WaitHandle.WaitOne(300)) return;
                 }
             }
 
 
-            Thread.Sleep(300);
+            if (token.WaitHandle.WaitOne(300)) return;
             Logger.Instance.Log("토스: 아래로 스크롤");
             TouchInjector.TouchDrag(new (int x, int y)[]
                         {
                                 (1714, 774),
                                 (1714, 354),
                         }, 5, 100);
-            Thread.Sleep(300);
+            if (token.WaitHandle.WaitOne(300)) return;
 
             updateExchageRate(@"image\대만.png", pictureBox7, tossTDLabel);
             updateExchageRate(@"image\태국.png", pictureBox8, tossTBLabel);
@@ -569,7 +1097,7 @@ namespace kakao_bank_macro
             updateExchageRate(@"image\미국.png", pictureBox4, tossDLabel);
             updateExchageRate(@"image\일본.png", pictureBox5, tossYLabel);
             updateExchageRate(@"image\베트남.png", pictureBox6, tossVDLabel);
-            
+
             Logger.Instance.Log("토스: 끝" + TouchInjector.getColor(1585, 778).ToString());
 
             //Logger.Instance.Log("토스: 오류발생" + TouchInjector.getColor(1900, 56).ToString()); // 208 208 208
@@ -582,7 +1110,7 @@ namespace kakao_bank_macro
             Logger.Instance.Log("토스: sw.milliseconds: " + sw.ElapsedMilliseconds);
         }
 
-        private void updateExchageRate (string path, PictureBox pictureBox, Label label )
+        private void updateExchageRate(string path, PictureBox pictureBox, Label label)
         {
             var pos = ImageFinder.FindImageOnScreen(path, 0.85);
 
@@ -597,7 +1125,10 @@ namespace kakao_bank_macro
                 string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
 
                 if (exchangeDRate == "0")
+                {
                     exchangeDRate = OcrHelper.Instance.RunOcr(bmp);
+                    Logger.Instance.Log("토스: 글자 인식 실패: " + exchangeDRate);
+                }
 
                 this.Invoke((Delegate)(() =>
                 {
@@ -608,16 +1139,18 @@ namespace kakao_bank_macro
             }
         }
 
-        private void getRateFromKakaoPay()
+        private void getRateFromKakaoPay(CancellationToken token)
         {
             Stopwatch sw = Stopwatch.StartNew();   // 시작
             Logger.Instance.Log("카페: 시작" + TouchInjector.getColor(1713, 773).ToString());
-            TouchInjector.TouchClickWithColor(1713, 773, Color.FromArgb(255, 235, 0));
+            TouchInjector.TouchClickWithColor(1713, 773, Color.FromArgb(255, 235, 0), token);
             if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
             {
                 Logger.Instance.Log("카페: 화면 미표시" + TouchInjector.getColor(1713, 773).ToString());
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
                     {
                         Logger.Instance.Log("스위치: 시작 다시 클릭" + TouchInjector.getColor(1713, 773).ToString());
@@ -627,17 +1160,19 @@ namespace kakao_bank_macro
                     {
                         break;
                     }
-                    System.Threading.Thread.Sleep(3000);
+                    if (token.WaitHandle.WaitOne(3000)) return;
                 }
             }
 
 
             Logger.Instance.Log("카페: 원->달러");
-            System.Threading.Thread.Sleep(800);
+            if (token.WaitHandle.WaitOne(800)) return;
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (TouchInjector.IsColorMatch(1806, 308, Color.FromArgb(254, 61, 76))) break;
-                System.Threading.Thread.Sleep(100);
+                if (token.WaitHandle.WaitOne(100)) return;
             }
 
             Bitmap bmp = new Bitmap(167, 60);
@@ -660,15 +1195,17 @@ namespace kakao_bank_macro
             }));
 
 
-            System.Threading.Thread.Sleep(800);
+            if (token.WaitHandle.WaitOne(800)) return;
             Logger.Instance.Log("카페: 달러->원");
             TouchInjector.TouchClick(1577, 155);
 
 
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (TouchInjector.IsColorMatch(1829, 391, Color.FromArgb(255, 63, 87))) break;
-                System.Threading.Thread.Sleep(100);
+                if (token.WaitHandle.WaitOne(100)) return;
             }
 
             Bitmap bmp1 = new Bitmap(167, 60);
@@ -690,20 +1227,22 @@ namespace kakao_bank_macro
                 CPCurWDRateLabel.Text = exchangeWDRate.Replace(",", "");
             }));
 
-            System.Threading.Thread.Sleep(800);
+            if (token.WaitHandle.WaitOne(800)) return;
             TouchInjector.TouchClick(1824, 163);
 
             Logger.Instance.Log("카페: 끝");
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
                 {
                     Logger.Instance.Log("카페: 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
                     TouchInjector.TouchClick(1721, 856);
-                    System.Threading.Thread.Sleep(100);
+                    if (token.WaitHandle.WaitOne(100)) return;
                 }
                 else break;
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
 
@@ -714,53 +1253,60 @@ namespace kakao_bank_macro
             bmp1.Dispose();
         }
 
-        private void getRateFromSwitchwon()
+        private void getRateFromSwitchwon(CancellationToken token)
         {
             Stopwatch sw = Stopwatch.StartNew();   // 시작
             Logger.Instance.Log("스위치: 시작" + TouchInjector.getColor(1790, 775).ToString());
-            TouchInjector.TouchClickWithColor(1790, 775, Color.FromArgb(249, 169, 72));
+            TouchInjector.TouchClickWithColor(1790, 775, Color.FromArgb(249, 169, 72), token);
             if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
             {
                 Logger.Instance.Log("스위치: 화면 미표시" + TouchInjector.getColor(1790, 775).ToString());
                 while (true)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     if (TouchInjector.IsColorMatch(1585, 778, Color.FromArgb(254, 227, 0)))
                     {
                         Logger.Instance.Log("스위치: 시작 다시 클릭" + TouchInjector.getColor(1790, 775).ToString());
                         TouchInjector.TouchClick(1790, 775);
                     }
-                    else 
+                    else
                     {
-                        break; 
+                        break;
                     }
-                    System.Threading.Thread.Sleep(3000);
+                    if (token.WaitHandle.WaitOne(300)) return;
                 }
             }
 
-            System.Threading.Thread.Sleep(1000);
+            if (token.WaitHandle.WaitOne(1000)) return;
 
             Logger.Instance.Log("스위치: 환율 화면" + TouchInjector.getColor(1583, 340).ToString());
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 // Thread.Sleep(5000);
                 // Logger.Instance.Log(TouchInjector.getColor(1583, 340).ToString());
-                if(TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
+                if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
                 {
+                    Logger.Instance.Log("스위치: 광고 닫기1");
                     TouchInjector.TouchClick(1803, 495);
                 }
                 else if (TouchInjector.IsColorMatch(1803, 529, Color.FromArgb(25, 35, 51)))
                 {
+                    Logger.Instance.Log("스위치: 광고 닫기2");
                     TouchInjector.TouchClick(1803, 529);
                 }
                 else if (TouchInjector.IsColorMatch(1870, 765, Color.FromArgb(25, 35, 51)))
                 {
+                    Logger.Instance.Log("스위치: 광고 닫기3");
                     TouchInjector.TouchClick(1870, 765);
                 }
-                else if (TouchInjector.IsColorMatch(1583, 340, Color.FromArgb(67, 71, 77))) 
+                else if (TouchInjector.IsColorMatch(1583, 340, Color.FromArgb(67, 71, 77)))
                 {
-                    break; 
+                    break;
                 }
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
             Logger.Instance.Log("스위치: 캡쳐");
@@ -799,14 +1345,16 @@ namespace kakao_bank_macro
             Logger.Instance.Log("스위치: 끝");
             while (true)
             {
+                if (token.IsCancellationRequested) return;
+
                 if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
                 {
                     Logger.Instance.Log("스위치: 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
                     TouchInjector.TouchClick(1721, 856);
-                    System.Threading.Thread.Sleep(100);
+                    if (token.WaitHandle.WaitOne(100)) return;
                 }
                 else break;
-                System.Threading.Thread.Sleep(300);
+                if (token.WaitHandle.WaitOne(300)) return;
             }
 
 
@@ -821,7 +1369,7 @@ namespace kakao_bank_macro
             IntPtr chattingRoom = FindWindow(null, roomName);
             IntPtr textBoxHwnd = FindWindowEx(chattingRoom, IntPtr.Zero, "RICHEDIT50W", null);
 
-            
+
 
             sendToKakaotalk(roomName, message);
             Thread.Sleep(200);
@@ -917,10 +1465,10 @@ namespace kakao_bank_macro
 하루:{hanaINLabel.Text}/토루:{tossINLabel.Text}/{tossINGapLabel.Text}
 하동:{hanaVDLabel.Text}/토동:{tossVDLabel.Text}/{tossVDGapLabel.Text}";
             }
-                sendToKakaotalk(roomName, now + "\r\n" + multiLine);
-                Thread.Sleep(200);
-                PostMessage(textBoxHwnd, WM_KEYDOWN, (IntPtr)VK_ENTER, IntPtr.Zero);
-                PostMessage(textBoxHwnd, WM_KEYUP, (IntPtr)VK_ENTER, IntPtr.Zero);
+            sendToKakaotalk(roomName, now + "\r\n" + multiLine);
+            Thread.Sleep(200);
+            PostMessage(textBoxHwnd, WM_KEYDOWN, (IntPtr)VK_ENTER, IntPtr.Zero);
+            PostMessage(textBoxHwnd, WM_KEYUP, (IntPtr)VK_ENTER, IntPtr.Zero);
 
         }
 
@@ -1077,9 +1625,13 @@ namespace kakao_bank_macro
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            Logger.Instance.Close();
+            Logger.Instance.Log("프로그램 종료 요청");
 
             isRunning = false;
+            ctsMain?.Cancel();
+            Thread.Sleep(300);
+
+            Logger.Instance.Close();
         }
 
         private void MainForm_FormCornerPreferenceChanged(object sender, EventArgs e)
@@ -1117,7 +1669,7 @@ namespace kakao_bank_macro
         document.querySelectorAll('video').forEach(v => v.remove());
     ";
 
-             webView22.ExecuteScriptAsync(script);
+            webView22.ExecuteScriptAsync(script);
         }
     }
 }

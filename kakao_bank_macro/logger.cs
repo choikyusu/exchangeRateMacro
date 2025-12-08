@@ -42,7 +42,9 @@ namespace kakao_bank_macro
         /// </summary>
         public void Log(string message)
         {
-            string timeMsg = $"{DateTime.Now:HH:mm:ss.fff} - {message}";
+            int id = Thread.CurrentThread.ManagedThreadId;
+
+            string timeMsg = $"{DateTime.Now:HH:mm:ss.fff} - {id} - {message}";
 
             // 1) 파일 로그
             Task.Run(() =>

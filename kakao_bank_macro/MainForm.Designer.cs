@@ -103,6 +103,7 @@
             tossYGapLabel = new Label();
             tossDGapLabel = new Label();
             CBCurGapLabel = new Label();
+            checkBoxInitApp = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -716,8 +717,9 @@
             timerLabel.AutoSize = true;
             timerLabel.Location = new Point(93, 16);
             timerLabel.Name = "timerLabel";
-            timerLabel.Size = new Size(0, 15);
+            timerLabel.Size = new Size(31, 15);
             timerLabel.TabIndex = 71;
+            timerLabel.Text = "시간";
             // 
             // tossVDGapLabel
             // 
@@ -782,11 +784,22 @@
             CBCurGapLabel.TabIndex = 78;
             CBCurGapLabel.Text = "0";
             // 
+            // checkBoxInitApp
+            // 
+            checkBoxInitApp.AutoSize = true;
+            checkBoxInitApp.Location = new Point(244, 16);
+            checkBoxInitApp.Name = "checkBoxInitApp";
+            checkBoxInitApp.Size = new Size(198, 19);
+            checkBoxInitApp.TabIndex = 79;
+            checkBoxInitApp.Text = "시작버튼 클릭시 앱 전체 초기화";
+            checkBoxInitApp.UseVisualStyleBackColor = true;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(541, 645);
+            Controls.Add(checkBoxInitApp);
             Controls.Add(CBCurGapLabel);
             Controls.Add(tossVDGapLabel);
             Controls.Add(tossINGapLabel);
@@ -962,5 +975,6 @@
         private Label tossYGapLabel;
         private Label tossDGapLabel;
         private Label CBCurGapLabel;
+        private CheckBox checkBoxInitApp;
     }
 }
