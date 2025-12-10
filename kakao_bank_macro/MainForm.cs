@@ -1074,7 +1074,7 @@ namespace kakao_bank_macro
                                 (1714, 774),
                                 (1714, 354),
                         }, 5, 100);
-            if (token.WaitHandle.WaitOne(300)) return;
+            if (token.WaitHandle.WaitOne(1000)) return;
 
             updateExchageRate(@"image\대만.png", pictureBox7, tossTDLabel);
             updateExchageRate(@"image\태국.png", pictureBox8, tossTBLabel);
@@ -1113,6 +1113,8 @@ namespace kakao_bank_macro
         private void updateExchageRate(string path, PictureBox pictureBox, Label label)
         {
             var pos = ImageFinder.FindImageOnScreen(path, 0.85);
+
+            Logger.Instance.Log("토스: 이미지 위치 찾음: " + path + " " + (pos != null ? pos.Value.ToString() : ""));
 
             if (pos != null)
             {
