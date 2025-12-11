@@ -1124,13 +1124,22 @@ namespace kakao_bank_macro
                     g.CopyFromScreen(1787, pos.Value.Y - 20, 0, 0, new Size(110, 30));
                 }
 
-                string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
-
-                if (exchangeDRate == "0")
+                for (int y = 0; y < bmp.Height; y++)
                 {
-                    exchangeDRate = OcrHelper.Instance.RunOcr(bmp);
-                    Logger.Instance.Log("토스: 글자 인식 실패: " + exchangeDRate);
+                    for (int x = 0; x < bmp.Width; x++)
+                    {
+                        Color c = bmp.GetPixel(x, y);
+
+                        if (c.R > 200 || c.B > 200)   // Red 값이 200 이상이면
+                        {
+                            bmp.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
+                        }
+                    }
                 }
+
+                string exchangeDRate = OcrHelper.Instance.RunOcr(bmp);
+                Logger.Instance.Log("토스: 글자 인식 " + exchangeDRate);
+                //}
 
                 this.Invoke((Delegate)(() =>
                 {
