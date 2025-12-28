@@ -104,6 +104,13 @@
             tossDGapLabel = new Label();
             CBCurGapLabel = new Label();
             checkBoxInitApp = new CheckBox();
+            webView23 = new Microsoft.Web.WebView2.WinForms.WebView2();
+            label10 = new Label();
+            KBCurTimeLabel = new Label();
+            KBCurValueLabel = new Label();
+            pictureBox11 = new PictureBox();
+            switchGLabel = new Label();
+            label33 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -116,6 +123,8 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
             ((System.ComponentModel.ISupportInitialize)webView22).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox10).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)webView23).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox11).BeginInit();
             SuspendLayout();
             // 
             // startButton
@@ -348,7 +357,7 @@
             webView21.AllowExternalDrop = true;
             webView21.CreationProperties = null;
             webView21.DefaultBackgroundColor = Color.White;
-            webView21.Location = new Point(349, 18);
+            webView21.Location = new Point(506, 14);
             webView21.Name = "webView21";
             webView21.Size = new Size(25, 17);
             webView21.TabIndex = 30;
@@ -642,7 +651,7 @@
             webView22.AllowExternalDrop = true;
             webView22.CreationProperties = null;
             webView22.DefaultBackgroundColor = Color.White;
-            webView22.Location = new Point(380, 18);
+            webView22.Location = new Point(537, 14);
             webView22.Name = "webView22";
             webView22.Size = new Size(17, 17);
             webView22.TabIndex = 63;
@@ -706,7 +715,7 @@
             // 
             // pictureBox10
             // 
-            pictureBox10.Location = new Point(352, 453);
+            pictureBox10.Location = new Point(352, 480);
             pictureBox10.Name = "pictureBox10";
             pictureBox10.Size = new Size(130, 35);
             pictureBox10.TabIndex = 70;
@@ -787,18 +796,89 @@
             // checkBoxInitApp
             // 
             checkBoxInitApp.AutoSize = true;
-            checkBoxInitApp.Location = new Point(244, 16);
+            checkBoxInitApp.Location = new Point(243, 12);
             checkBoxInitApp.Name = "checkBoxInitApp";
             checkBoxInitApp.Size = new Size(198, 19);
             checkBoxInitApp.TabIndex = 79;
             checkBoxInitApp.Text = "시작버튼 클릭시 앱 전체 초기화";
             checkBoxInitApp.UseVisualStyleBackColor = true;
             // 
+            // webView23
+            // 
+            webView23.AllowExternalDrop = true;
+            webView23.CreationProperties = null;
+            webView23.DefaultBackgroundColor = Color.White;
+            webView23.Location = new Point(560, 12);
+            webView23.Name = "webView23";
+            webView23.Size = new Size(43, 23);
+            webView23.TabIndex = 80;
+            webView23.ZoomFactor = 1D;
+            // 
+            // label10
+            // 
+            label10.AutoSize = true;
+            label10.Location = new Point(493, 51);
+            label10.Name = "label10";
+            label10.Size = new Size(61, 15);
+            label10.TabIndex = 81;
+            label10.Text = "KB 금시세";
+            // 
+            // KBCurTimeLabel
+            // 
+            KBCurTimeLabel.AutoSize = true;
+            KBCurTimeLabel.Location = new Point(493, 75);
+            KBCurTimeLabel.Name = "KBCurTimeLabel";
+            KBCurTimeLabel.Size = new Size(14, 15);
+            KBCurTimeLabel.TabIndex = 82;
+            KBCurTimeLabel.Text = "0";
+            // 
+            // KBCurValueLabel
+            // 
+            KBCurValueLabel.AutoSize = true;
+            KBCurValueLabel.Location = new Point(493, 99);
+            KBCurValueLabel.Name = "KBCurValueLabel";
+            KBCurValueLabel.Size = new Size(14, 15);
+            KBCurValueLabel.TabIndex = 83;
+            KBCurValueLabel.Text = "0";
+            // 
+            // pictureBox11
+            // 
+            pictureBox11.Location = new Point(352, 521);
+            pictureBox11.Name = "pictureBox11";
+            pictureBox11.Size = new Size(170, 43);
+            pictureBox11.TabIndex = 84;
+            pictureBox11.TabStop = false;
+            // 
+            // switchGLabel
+            // 
+            switchGLabel.AutoSize = true;
+            switchGLabel.Location = new Point(463, 447);
+            switchGLabel.Name = "switchGLabel";
+            switchGLabel.Size = new Size(14, 15);
+            switchGLabel.TabIndex = 85;
+            switchGLabel.Text = "0";
+            // 
+            // label33
+            // 
+            label33.AutoSize = true;
+            label33.Location = new Point(427, 447);
+            label33.Name = "label33";
+            label33.Size = new Size(22, 15);
+            label33.TabIndex = 86;
+            label33.Text = "금:";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(541, 645);
+            ClientSize = new Size(607, 645);
+            Controls.Add(switchGLabel);
+            Controls.Add(label33);
+            Controls.Add(pictureBox11);
+            Controls.Add(KBCurValueLabel);
+            Controls.Add(KBCurTimeLabel);
+            Controls.Add(label10);
+            Controls.Add(webView23);
             Controls.Add(checkBoxInitApp);
             Controls.Add(CBCurGapLabel);
             Controls.Add(tossVDGapLabel);
@@ -893,6 +973,8 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
             ((System.ComponentModel.ISupportInitialize)webView22).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox10).EndInit();
+            ((System.ComponentModel.ISupportInitialize)webView23).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox11).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -976,5 +1058,12 @@
         private Label tossDGapLabel;
         private Label CBCurGapLabel;
         private CheckBox checkBoxInitApp;
+        private Microsoft.Web.WebView2.WinForms.WebView2 webView23;
+        private Label label10;
+        private Label KBCurTimeLabel;
+        private Label KBCurValueLabel;
+        private PictureBox pictureBox11;
+        private Label switchGLabel;
+        private Label label33;
     }
 }

@@ -68,7 +68,7 @@ namespace kakao_bank_macro
 
                 if (double.TryParse(newText, out double value))
                 {
-                    if (value > 10000 || value < 0)
+                    if (value > 1000000 || value < 0)
                         return "0";
                 }
                 else
@@ -117,7 +117,7 @@ namespace kakao_bank_macro
 
                 if (double.TryParse(newText, out double value))
                 {
-                    if (value > 10000 || value < 0)
+                    if (value > 1000000 || value < 0)
                         return "0";
                 }
                 else
