@@ -111,6 +111,13 @@
             pictureBox11 = new PictureBox();
             switchGLabel = new Label();
             label33 = new Label();
+            pictureBox12 = new PictureBox();
+            switchSLabel = new Label();
+            label34 = new Label();
+            KBCurSValueLabel = new Label();
+            KBCurSTimeLabel = new Label();
+            label36 = new Label();
+            webView24 = new Microsoft.Web.WebView2.WinForms.WebView2();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -125,6 +132,8 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox10).BeginInit();
             ((System.ComponentModel.ISupportInitialize)webView23).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox12).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)webView24).BeginInit();
             SuspendLayout();
             // 
             // startButton
@@ -867,11 +876,82 @@
             label33.TabIndex = 86;
             label33.Text = "금:";
             // 
+            // pictureBox12
+            // 
+            pictureBox12.Location = new Point(352, 570);
+            pictureBox12.Name = "pictureBox12";
+            pictureBox12.Size = new Size(170, 43);
+            pictureBox12.TabIndex = 87;
+            pictureBox12.TabStop = false;
+            // 
+            // switchSLabel
+            // 
+            switchSLabel.AutoSize = true;
+            switchSLabel.Location = new Point(463, 462);
+            switchSLabel.Name = "switchSLabel";
+            switchSLabel.Size = new Size(14, 15);
+            switchSLabel.TabIndex = 88;
+            switchSLabel.Text = "0";
+            // 
+            // label34
+            // 
+            label34.AutoSize = true;
+            label34.Location = new Point(427, 462);
+            label34.Name = "label34";
+            label34.Size = new Size(22, 15);
+            label34.TabIndex = 89;
+            label34.Text = "은:";
+            // 
+            // KBCurSValueLabel
+            // 
+            KBCurSValueLabel.AutoSize = true;
+            KBCurSValueLabel.Location = new Point(493, 179);
+            KBCurSValueLabel.Name = "KBCurSValueLabel";
+            KBCurSValueLabel.Size = new Size(14, 15);
+            KBCurSValueLabel.TabIndex = 92;
+            KBCurSValueLabel.Text = "0";
+            // 
+            // KBCurSTimeLabel
+            // 
+            KBCurSTimeLabel.AutoSize = true;
+            KBCurSTimeLabel.Location = new Point(493, 155);
+            KBCurSTimeLabel.Name = "KBCurSTimeLabel";
+            KBCurSTimeLabel.Size = new Size(14, 15);
+            KBCurSTimeLabel.TabIndex = 91;
+            KBCurSTimeLabel.Text = "0";
+            // 
+            // label36
+            // 
+            label36.AutoSize = true;
+            label36.Location = new Point(493, 131);
+            label36.Name = "label36";
+            label36.Size = new Size(61, 15);
+            label36.TabIndex = 90;
+            label36.Text = "KB 은시세";
+            // 
+            // webView24
+            // 
+            webView24.AllowExternalDrop = true;
+            webView24.CreationProperties = null;
+            webView24.DefaultBackgroundColor = Color.White;
+            webView24.Location = new Point(560, 41);
+            webView24.Name = "webView24";
+            webView24.Size = new Size(43, 23);
+            webView24.TabIndex = 93;
+            webView24.ZoomFactor = 1D;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(607, 645);
+            Controls.Add(webView24);
+            Controls.Add(KBCurSValueLabel);
+            Controls.Add(KBCurSTimeLabel);
+            Controls.Add(label36);
+            Controls.Add(switchSLabel);
+            Controls.Add(label34);
+            Controls.Add(pictureBox12);
             Controls.Add(switchGLabel);
             Controls.Add(label33);
             Controls.Add(pictureBox11);
@@ -975,6 +1055,8 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox10).EndInit();
             ((System.ComponentModel.ISupportInitialize)webView23).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox12).EndInit();
+            ((System.ComponentModel.ISupportInitialize)webView24).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -1065,5 +1147,12 @@
         private PictureBox pictureBox11;
         private Label switchGLabel;
         private Label label33;
+        private PictureBox pictureBox12;
+        private Label switchSLabel;
+        private Label label34;
+        private Label KBCurSValueLabel;
+        private Label KBCurSTimeLabel;
+        private Label label36;
+        private Microsoft.Web.WebView2.WinForms.WebView2 webView24;
     }
 }
