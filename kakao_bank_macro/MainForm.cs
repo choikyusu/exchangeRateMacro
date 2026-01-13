@@ -309,7 +309,7 @@ namespace kakao_bank_macro
                         }, 7, 20);
 
 
-            if (token.WaitHandle.WaitOne(3000)) return;
+            if (token.WaitHandle.WaitOne(6000)) return;
 
             Logger.Instance.Log("초기화: 카카오뱅크 환율화면 진입 시도");
 
@@ -474,7 +474,7 @@ namespace kakao_bank_macro
                 }
             }
 
-            if (token.WaitHandle.WaitOne(2000)) return;
+            if (token.WaitHandle.WaitOne(10000)) return;
 
             Logger.Instance.Log("초기화: 토스 전체 메뉴 클릭" + TouchInjector.getColor(1656, 190).ToString());
             TouchInjector.TouchClick(1860, 794);
@@ -529,30 +529,28 @@ namespace kakao_bank_macro
             {
                 if (token.IsCancellationRequested) return;
 
-                if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
+                if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(242, 244, 245)))
                 {
-                    Logger.Instance.Log("토스: 토스뱅크 진입" + TouchInjector.getColor(1887, 109).ToString());
+                    Logger.Instance.Log("토스: 내 외화 진입" + TouchInjector.getColor(1756, 129).ToString());
                     break;
                 }
                 if (token.WaitHandle.WaitOne(300)) return;
             }
 
+            if (token.WaitHandle.WaitOne(5000)) return;
 
-
-            Logger.Instance.Log("초기화: 토스뱅크 환율 화면 진입" + TouchInjector.getColor(1887, 109).ToString());
+            Logger.Instance.Log("토스: 환율화면 떴음" + TouchInjector.getColor(1756, 129).ToString());
 
             while (true)
             {
                 if (token.IsCancellationRequested) return;
 
-                if (TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(10, 15, 20)))
+                if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(255, 255, 255)))
                 {
-                    Logger.Instance.Log("초기화: 토스뱅크 환율진입중" + TouchInjector.getColor(1887, 109).ToString());
-                    break;
+                    Logger.Instance.Log("토스: 환율 클릭" + TouchInjector.getColor(1756, 129).ToString());
+                    TouchInjector.TouchClick(1756, 129);
                 }
-
-                Logger.Instance.Log("초기화: 토스뱅크 환율 화면 기다리는중" + TouchInjector.getColor(1887, 109).ToString());
-
+                else break;
 
                 if (token.WaitHandle.WaitOne(400)) return;
             }
@@ -757,6 +755,7 @@ namespace kakao_bank_macro
 
                     if (timeSinceLastRestart.TotalHours >= 2)
                     {
+                        sendKakaotalkAnyMessage("NEW환도박방", "⏰ 2시간 경과로 인한 정기 재시작 준비");
                         Logger.Instance.Log($"⏰ 2시간 경과 ({timeSinceLastRestart.TotalMinutes:F0}분) → 정기 재시작 준비");
                         isPeriodicRestartNeeded = true;
                     }
@@ -1361,22 +1360,18 @@ namespace kakao_bank_macro
                 }
             }
 
-            Logger.Instance.Log("토스: 시작버튼 클릭" + TouchInjector.getColor(1863, 783).ToString());
+            Logger.Instance.Log("토스: 시작버튼 클릭" + TouchInjector.getColor(1854, 784).ToString());
 
-            TouchInjector.TouchClickWithColor(1863, 783, Color.FromArgb(17, 170, 255), token);
-
-            if (token.WaitHandle.WaitOne(300)) return;
-
-            if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
+            if (!TouchInjector.IsColorMatch(1854, 784, Color.FromArgb(48,130,246)))
             {
                 while (true)
                 {
                     if (token.IsCancellationRequested) return;
 
-                    if (TouchInjector.IsColorMatch(1886, 108, Color.FromArgb(255, 255, 255)))
+                    if (!TouchInjector.IsColorMatch(1854, 784, Color.FromArgb(48, 130, 246)))
                     {
                         Logger.Instance.Log("토스: 시작버튼 반복" + TouchInjector.getColor(1886, 108).ToString());
-                        TouchInjector.TouchClick(1863, 783);
+                        TouchInjector.TouchClick(1894, 767);
                     }
                     else
                     {
@@ -1387,7 +1382,7 @@ namespace kakao_bank_macro
             }
 
             Logger.Instance.Log("토스: 카운트" + count);
-            if (count % 20 == 0)
+            if (count % 50 == 49)
             {
                 Logger.Instance.Log("토스: 뱅크 밖으로 나갔다 오기" + TouchInjector.getColor(1640, 165).ToString());
 
@@ -1418,9 +1413,12 @@ namespace kakao_bank_macro
                 {
                     if (token.IsCancellationRequested) return;
 
-                    if (!TouchInjector.IsColorMatch(1887, 109, Color.FromArgb(255, 255, 255)))
+                    if (!TouchInjector.IsColorMatch(1756, 128, Color.FromArgb(255, 255, 255)))
                     {
-                        Logger.Instance.Log("토스: 토스뱅크 진입" + TouchInjector.getColor(1887, 109).ToString());
+                        Logger.Instance.Log("토스: 내외화 -> 환율 클릭" + TouchInjector.getColor(1756, 128).ToString());
+                        TouchInjector.TouchClick(1756, 128);
+                        if (token.WaitHandle.WaitOne(2000)) return;
+
                         break;
                     }
                     if (token.WaitHandle.WaitOne(300)) return;
@@ -1432,8 +1430,8 @@ namespace kakao_bank_macro
             Logger.Instance.Log("토스: 아래로 스크롤");
             TouchInjector.TouchDrag(new (int x, int y)[]
                         {
-                                (1714, 774),
-                                (1714, 354),
+                                (1714, 744),
+                                (1714, 192),
                         }, 5, 100);
             if (token.WaitHandle.WaitOne(1000)) return;
 
@@ -1485,10 +1483,11 @@ namespace kakao_bank_macro
                 Bitmap bmp = new Bitmap(110, 30);
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
-                    g.CopyFromScreen(1787, pos.Value.Y - 20, 0, 0, new Size(110, 30));
+                    g.CopyFromScreen(1574, pos.Value.Y + 20, 0, 0, new Size(110, 30));
                 }
 
                 string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
+                Logger.Instance.Log("토스: 글자인식: " + exchangeDRate);
 
                 if (exchangeDRate.Contains(".") && exchangeDRate.Split('.')[1].Length == 자리수)
                 {
