@@ -1,6 +1,11 @@
 ﻿using Microsoft.Web.WebView2.Core;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
+using System.IO;
+using System.IO.Pipelines;
 using System.Runtime.InteropServices;
 using YamlDotNet.Core.Tokens;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -54,6 +59,10 @@ namespace kakao_bank_macro
 
         private bool needInitApp = false;
 
+        private long lastCountTick = DateTime.UtcNow.Ticks;   // count 마지막 증가 시각
+        private volatile bool suppressCountAlert = false;     // 재시작 직후 경고 제외용
+        private int noCountAlertSent = 0;                     // 같은 정지 상태에서 중복 알림 방지
+
 
         public MainForm()
         {
@@ -70,7 +79,7 @@ namespace kakao_bank_macro
 
             width = Screen.PrimaryScreen.Bounds.Width;
 
-            IntPtr hWnd = FindWindow(null, "Samsung Flow");
+            IntPtr hWnd = FindWindow(null, "삼성 플로우");
             //IntPtr hWnd = FindWindow(null, "Galaxy S10");
             bool result = SetWindowPos(
             hWnd,
@@ -85,6 +94,10 @@ namespace kakao_bank_macro
             {
                 isRunning = true;
                 ctsMain = new CancellationTokenSource();
+
+                lastCountTick = DateTime.UtcNow.Ticks;
+                suppressCountAlert = false;
+                noCountAlertSent = 0;
 
                 threadMain = new Thread(() => RunAutomationLoopAsync(ctsMain.Token).Wait())
                 {
@@ -119,7 +132,7 @@ namespace kakao_bank_macro
 
         private async Task RunAutomationLoopAsync(CancellationToken token)
         {
-            IntPtr hWnd = FindWindow(null, "Samsung Flow");
+            IntPtr hWnd = FindWindow(null, "삼성 플로우");
             // IntPtr hWnd = FindWindow(null, "Galaxy S10");
             this.Invoke((Delegate)(() =>
             {
@@ -198,6 +211,8 @@ namespace kakao_bank_macro
                 }
 
                 count++;
+                Interlocked.Exchange(ref lastCountTick, DateTime.UtcNow.Ticks);
+                Interlocked.Exchange(ref noCountAlertSent, 0); // 다시 정상 동작했으니 경고 가능 상태 초기화
 
             }
             Logger.Instance.Log("RunAutomationLoopAsync 루프 종료됨");
@@ -482,13 +497,13 @@ namespace kakao_bank_macro
             {
                 if (token.IsCancellationRequested) return;
 
-                if (!TouchInjector.IsColorMatch(1656, 166, Color.FromArgb(242, 244, 245)))
+                if (!TouchInjector.IsColorMatch(1768, 168, Color.FromArgb(255, 255, 255)))
                 {
-                    Logger.Instance.Log("초기화: 토스 전체 메뉴 클릭 반복 클릭" + TouchInjector.getColor(1656, 190).ToString());
+                    Logger.Instance.Log("초기화: 토스 전체 메뉴 클릭 반복 클릭" + TouchInjector.getColor(1768, 168).ToString());
                     TouchInjector.TouchClick(1860, 794);
-                     
+
                 }
-                else break; 
+                else break;
                 if (token.WaitHandle.WaitOne(1000)) return;
             }
 
@@ -512,65 +527,84 @@ namespace kakao_bank_macro
             //}
 
 
-            Logger.Instance.Log("토스: 돋보기 누름" + TouchInjector.getColor(1834, 114).ToString());
-            TouchInjector.TouchClick(1834, 114);
-            if (token.WaitHandle.WaitOne(3000)) return;
+            Logger.Instance.Log("토스: 토스뱅크 누름" + TouchInjector.getColor(1768, 168).ToString());
+            TouchInjector.TouchClick(1763, 264);
+            if (token.WaitHandle.WaitOne(8000)) return;
 
-            Logger.Instance.Log("토스: 외환 누름" + TouchInjector.getColor(1551, 330).ToString());
-            TouchInjector.TouchClick(1551, 330);
-            if (token.WaitHandle.WaitOne(3000)) return;
-
-            Logger.Instance.Log("토스: 토스뱅크 환전 누름" + TouchInjector.getColor(1554, 286).ToString());
-            TouchInjector.TouchClick(1554, 286);
-            if (token.WaitHandle.WaitOne(3000)) return;
-
-
-            while (true)
-            {
-                if (token.IsCancellationRequested) return;
-
-                if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(242, 244, 245)))
-                {
-                    Logger.Instance.Log("토스: 내 외화 진입" + TouchInjector.getColor(1756, 129).ToString());
-                    break;
-                }
-                if (token.WaitHandle.WaitOne(300)) return;
-            }
-
+            Logger.Instance.Log("토스: 톱니바퀴 누름" + TouchInjector.getColor(1551, 330).ToString());
+            TouchInjector.TouchClick(1886, 113);
             if (token.WaitHandle.WaitOne(5000)) return;
 
-            Logger.Instance.Log("토스: 환율화면 떴음" + TouchInjector.getColor(1756, 129).ToString());
-
             while (true)
             {
-                if (token.IsCancellationRequested) return;
+                Logger.Instance.Log("토스: 아래로 스크롤");
+                TouchInjector.TouchDrag(new (int x, int y)[]
+                            {
+                                    (1714, 744),
+                                    (1714, 192),
+                            }, 5, 100);
+                if (token.WaitHandle.WaitOne(1000)) return;
 
-                if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(255, 255, 255)))
+                var pos = ImageFinder.FindImageOnScreen(@"image\환율조회.png", 0.90);
+
+                if (pos != null)
                 {
-                    Logger.Instance.Log("토스: 환율 클릭" + TouchInjector.getColor(1756, 129).ToString());
-                    TouchInjector.TouchClick(1756, 129);
+                    Logger.Instance.Log($"토스: 환율조회 위치 찾음");
+
+                    TouchInjector.TouchClick(pos.Value.X + 40, pos.Value.Y + 9);
+
+                    if (token.WaitHandle.WaitOne(1000)) return;
+                    break;
                 }
-                else break;
-
-                if (token.WaitHandle.WaitOne(400)) return;
             }
+            
 
-            if (token.WaitHandle.WaitOne(1700)) return;
+            //    while (true)
+            //    {
+            //        if (token.IsCancellationRequested) return;
 
-            Logger.Instance.Log("초기화: 토스 끝");
-            while (true)
-            {
-                if (token.IsCancellationRequested) return;
+            //        if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(242, 244, 245)))
+            //        {
+            //            Logger.Instance.Log("토스: 내 외화 진입" + TouchInjector.getColor(1756, 129).ToString());
+            //            break;
+            //        }
+            //        if (token.WaitHandle.WaitOne(300)) return;
+            //    }
 
-                if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
-                {
-                    Logger.Instance.Log("초기화: 토스 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
-                    TouchInjector.TouchClick(1721, 856);
-                    if (token.WaitHandle.WaitOne(100)) return;
-                }
-                else break;
-                if (token.WaitHandle.WaitOne(300)) return;
-            }
+            //if (token.WaitHandle.WaitOne(5000)) return;
+
+            //Logger.Instance.Log("토스: 환율화면 떴음" + TouchInjector.getColor(1756, 129).ToString());
+
+            //while (true)
+            //{
+            //    if (token.IsCancellationRequested) return;
+
+            //    if (!TouchInjector.IsColorMatch(1756, 129, Color.FromArgb(255, 255, 255)))
+            //    {
+            //        Logger.Instance.Log("토스: 환율 클릭" + TouchInjector.getColor(1756, 129).ToString());
+            //        TouchInjector.TouchClick(1756, 129);
+            //    }
+            //    else break;
+
+            //    if (token.WaitHandle.WaitOne(400)) return;
+            //}
+
+            //if (token.WaitHandle.WaitOne(1700)) return;
+
+            //Logger.Instance.Log("초기화: 토스 끝");
+            //while (true)
+            //{
+            //    if (token.IsCancellationRequested) return;
+
+            //    if (!TouchInjector.IsColorMatch(1573, 766, Color.FromArgb(254, 227, 1)))
+            //    {
+            //        Logger.Instance.Log("초기화: 토스 홈버튼" + TouchInjector.getColor(1583, 340).ToString());
+            //        TouchInjector.TouchClick(1721, 856);
+            //        if (token.WaitHandle.WaitOne(100)) return;
+            //    }
+            //    else break;
+            //    if (token.WaitHandle.WaitOne(300)) return;
+            //}
         }
 
         private void initSwitchwonApp(CancellationToken token)
@@ -599,14 +633,20 @@ namespace kakao_bank_macro
 
             if (token.WaitHandle.WaitOne(1000)) return;
 
-            Logger.Instance.Log("초기화: 스위치원  환율 화면" + TouchInjector.getColor(1583, 340).ToString());
+            Logger.Instance.Log("초기화: 스위치원  환율 화면" + TouchInjector.getColor(1681, 717).ToString());
             while (true)
             {
                 if (token.IsCancellationRequested) return;
 
                 // Thread.Sleep(5000);
                 // Logger.Instance.Log(TouchInjector.getColor(1583, 340).ToString());
-                if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
+                if (TouchInjector.IsColorMatch(1843, 660, Color.FromArgb(254, 229, 0)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원 둘러보기 클릭");
+                    TouchInjector.TouchClick(1873, 109);
+                    token.WaitHandle.WaitOne(2000);
+                }
+                else if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
                 {
                     Logger.Instance.Log("초기화: 스위치원  광고 닫기1");
                     TouchInjector.TouchClick(1803, 495);
@@ -661,7 +701,7 @@ namespace kakao_bank_macro
                     TouchInjector.TouchClick(1753, 500);
                     if (token.WaitHandle.WaitOne(500)) return;
                 }
-                else if (TouchInjector.IsColorMatch(1583, 340, Color.FromArgb(67, 71, 77)))
+                else if (TouchInjector.IsColorMatch(1681, 717, Color.FromArgb(57, 110, 255)))
                 {
                     break;
                 }
@@ -738,18 +778,12 @@ namespace kakao_bank_macro
 
         private async Task RunAutomationCheckErrorAsync()
         {
-            // [추가] 1. 마지막으로 재시작한 시간을 기록하는 변수 선언
             DateTime lastRestartTime = DateTime.Now;
 
-            // 이 함수는 ctsMain 토큰과 독립적으로 실행되는 감시자 스레드입니다.
-            // 필요하다면 여기도 종료 로직을 개선할 수 있지만, 
-            // 요청하신 "RunAutomationLoopAsync 하위"에 포함되지 않아 isRunning 플래그 유지합니다.
             while (isRunning)
             {
-
                 try
                 {
-
                     bool isPeriodicRestartNeeded = false;
                     TimeSpan timeSinceLastRestart = DateTime.Now - lastRestartTime;
 
@@ -760,108 +794,41 @@ namespace kakao_bank_macro
                         isPeriodicRestartNeeded = true;
                     }
 
-                    Bitmap bmp = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(2000);
-
-                    Bitmap bmp2 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp2))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(3000);
-
-                    Bitmap bmp3 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp3))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(2000);
-
-                    Bitmap bmp4 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp4))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(3000);
-
-                    Bitmap bmp5 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp5))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(1000);
-
-                    Bitmap bmp6 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp6))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(2000);
-
-                    Bitmap bmp7 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp7))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-                    Thread.Sleep(3000);
-
-                    Bitmap bmp8 = new Bitmap(200, 150);
-                    using (Graphics g = Graphics.FromImage(bmp8))
-                    {
-                        g.CopyFromScreen(1540, 162, 0, 0, new Size(200, 150));
-                    }
-
-
-                    double a1 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp2);
-                    double a2 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp3);
-                    double a3 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp4);
-                    double a4 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp5);
-                    double a5 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp6);
-                    double a6 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp7);
-                    double a7 = ImageSimilarity.CompareSimilarity((Bitmap)bmp, (Bitmap)bmp8);
-
                     bool shouldRestart = false;
+
+                    // 마지막 count 증가 시각 확인
+                    DateTime lastCountTimeUtc = new DateTime(
+                        Interlocked.Read(ref lastCountTick),
+                        DateTimeKind.Utc);
+
+                    double noCountSeconds = (DateTime.UtcNow - lastCountTimeUtc).TotalSeconds;
 
                     this.Invoke((Delegate)(() =>
                     {
-                        // [수정] 3. 정기 재시작 조건 우선 처리
                         if (isPeriodicRestartNeeded)
                         {
                             Logger.Instance.Log("⏰ 2시간 경과로 인한 정기 재시작 실행");
-                            needInitApp = true;      // 앱 초기화 옵션 켜기 (필요시)
-                            shouldRestart = true;    // 재시작 플래그 ON
-                            lastRestartTime = DateTime.Now; // [중요] 시간 리셋
-                            errorCount = 0;          // 에러 카운트도 초기화
-                        }
-                        // 기존 로직: 화면이 변하고 있다면 에러 카운트 초기화
-                        else if(a1 <= 0.99 || a2 <= 0.99 || a3 <= 0.99 || a4 <= 0.99 || a5 <= 0.99 || a6 <= 0.99 || a7 <= 0.99)
-                        {
+                            needInitApp = true;
+                            shouldRestart = true;
+
+                            lastRestartTime = DateTime.Now;
                             errorCount = 0;
+
+                            // 재시작 시 count 무반응 경고 제외
+                            suppressCountAlert = true;
+                            Interlocked.Exchange(ref lastCountTick, DateTime.UtcNow.Ticks);
+                            Interlocked.Exchange(ref noCountAlertSent, 0);
                         }
                         else
                         {
-                            sendKakaotalkAnyMessage("최규수", "확인필요!!! ");
-                            errorCount++;
-
-                            if (errorCount >= 2)
+                            // shouldRestart 상태가 아니고, count가 1분간 증가 안 했을 때만 경고
+                            if (!suppressCountAlert && noCountSeconds >= 60)
                             {
-                                Logger.Instance.Log("⚠ 연속 2회 검사 오류 → 메인 스레드 재시작");
-
-                                needInitApp = true;
-                                shouldRestart = true;
-                                lastRestartTime = DateTime.Now; // [추가] 에러로 재시작했으니 타이머도 리셋
-                                errorCount = 0;
+                                if (Interlocked.CompareExchange(ref noCountAlertSent, 1, 0) == 0)
+                                {
+                                    Logger.Instance.Log($"⚠ count가 60초 이상 증가하지 않음 ({noCountSeconds:F0}초)");
+                                    sendKakaotalkAnyMessage("최규수", "확인필요!!! ");
+                                }
                             }
                         }
                     }));
@@ -869,22 +836,19 @@ namespace kakao_bank_macro
                     if (shouldRestart)
                     {
                         RestartMainThreads();
+
+                        // 재시작 직후에는 count가 아직 안 돌 수 있으니 기준 시각 리셋
+                        Interlocked.Exchange(ref lastCountTick, DateTime.UtcNow.Ticks);
+                        suppressCountAlert = false;
+                        Interlocked.Exchange(ref noCountAlertSent, 0);
                     }
 
-                    bmp.Dispose();
-                    bmp2.Dispose();
-                    bmp3.Dispose();
-                    bmp4.Dispose();
-                    bmp5.Dispose();
-                    bmp6.Dispose();
-                    bmp7.Dispose();
-                    bmp8.Dispose();
-
-                    Thread.Sleep(40000);
+                    await Task.Delay(5000);
                 }
                 catch (Exception ex)
                 {
                     Logger.Instance.Log("감시 스레드 에러: " + ex.Message);
+                    await Task.Delay(3000);
                 }
             }
         }
@@ -941,6 +905,10 @@ namespace kakao_bank_macro
             };
             threadKBWeb.SetApartmentState(ApartmentState.STA);
             threadKBWeb.Start();
+
+            Interlocked.Exchange(ref lastCountTick, DateTime.UtcNow.Ticks);
+            suppressCountAlert = false;
+            Interlocked.Exchange(ref noCountAlertSent, 0);
 
             Logger.Instance.Log("메인 루프 재시작 완료 (t3는 유지)");
         }
@@ -1011,19 +979,20 @@ namespace kakao_bank_macro
             try
             {
                 DateTime now = DateTime.Now;
-                if ((now.Hour >= 9 && now.Hour < 15) || (now.Hour == 8 && now.Minute >= 50) || (now.Hour == 15 && now.Minute <= 30))
-                {
                     this.Invoke((Delegate)(() =>
                     {
                         webView23.Reload();
-                        //webView24.Reload();
+                        // webView24.Reload();
                     }));
+
+                    string investingValue = await investingWaitAndGetCellAsync("instrument-price-last");
+                    string investingTime= await investingWaitAndGetCellAsync("trading-time-label");
 
                     string time = await KbWaitAndGetCellAsync("1", "1");
                     string value = await KbWaitAndGetCellAsync("1", "2");
 
-                    //string sTime = await KbWaitAndGetCellAsync("1", "1");
-                    //string sValue = await KbWaitAndGetCellAsync("1", "2");
+                    //string time = await KbSWaitAndGetCellAsync("1", "2");
+                    //string value = await KbSWaitAndGetCellAsync("1", "3");
 
 
 
@@ -1067,17 +1036,39 @@ namespace kakao_bank_macro
                                     gapText = "(갭 10 이상)";
                                 }
                                 string result = $@"{DateTime.Now.ToString("HH시 mm분 ss초")}
-✨🧈✨KB갱신:{time}✨🧈✨
-케은: {value}
-스은: {formatted}({gap})";
-
+스은: {formatted}({gap})
+케은: {value} // {time}
+인은: {investingValue} // {investingTime}";
                                 if (gapText != "")
                                     result += "\r\n" + gapText;
 
+                                if (now.Hour < 9 || now.Hour >= 17)
+                                {
+                                    result = $@"{DateTime.Now.ToString("HH시 mm분 ss초")}
+스은: {formatted}
+인은: {investingValue} // {investingTime}";
+                                }
 
-                                sendKakaotalkAnyMessage("NEW환도박방", result);
+                                this.Invoke((Delegate)(() =>
+                                {
+                                    // sendKakaotalkMessage("최규수");
+                                    if (now.DayOfWeek >= DayOfWeek.Monday &&
+                                       now.Hour >= 9 || now.DayOfWeek >= DayOfWeek.Tuesday)
+                                    {
+                                        sendKakaotalkAnyMessage("은체크방", result);
+                                    }
+                                    else
+                                    {
+                                        Logger.Instance.Log("아직 시간 안됨");
+                                    }
+                                }));
+
+                                
                             }
                         }
+
+                        InvestCurTimeLabel.Text = investingTime;
+                        InvestCurValueLabel.Text = investingValue;
 
                         KBCurTimeLabel.Text = time;
                         KBCurValueLabel.Text = value;
@@ -1086,7 +1077,6 @@ namespace kakao_bank_macro
                         //KBCurSValueLabel.Text = sValue;
                         gCount++;
                     }));
-                }
             }
             catch (Exception ex)
             {
@@ -1362,14 +1352,38 @@ namespace kakao_bank_macro
 
             Logger.Instance.Log("토스: 시작버튼 클릭" + TouchInjector.getColor(1854, 784).ToString());
 
-            if (!TouchInjector.IsColorMatch(1854, 784, Color.FromArgb(48,130,246)))
+            if (!TouchInjector.IsColorMatch(1854, 784, Color.FromArgb(48, 130, 246)))
             {
                 while (true)
                 {
                     if (token.IsCancellationRequested) return;
 
-                    if (!TouchInjector.IsColorMatch(1854, 784, Color.FromArgb(48, 130, 246)))
+                    if (TouchInjector.IsColorMatch(1547, 289, Color.FromArgb(203, 169, 245))) // 토스뱅크 나가짐
                     {
+                        Logger.Instance.Log("토스: 토스뱅크 나가짐" + TouchInjector.getColor(1547, 289).ToString());
+                        break;
+                    }
+                    else if (!TouchInjector.IsColorMatch(1768, 856, Color.FromArgb(255, 255, 255)))
+                    {
+                        //Logger.Instance.Log("토스: 체크");
+                        //var pos = ImageFinder.FindImageOnScreen(@"image\다시불러오기.png", 0.90);
+                        //var pos2 = ImageFinder.FindImageOnScreen(@"image\다시불러오기2.png", 0.90);
+                        //var pos3 = ImageFinder.FindImageOnScreen(@"image\다시불러오기3.png", 0.90);
+
+                        //var targetPos = pos ?? pos2 ?? pos3;
+
+                        //if (targetPos != null)
+                        //{
+                        //    // (선택사항) 몇 번째 이미지인지 구별하여 로그를 찍고 싶다면 삼항 연산자 활용
+                        //    string typeCheck = (pos != null) ? "1" : (pos2 != null ? "2" : "3");
+                        //    Logger.Instance.Log($"토스: 다시불러오기 떠있음{typeCheck}");
+
+                        //    // 통합된 targetPos를 사용하여 클릭 수행
+                        //    TouchInjector.TouchClick(targetPos.Value.X + 40, targetPos.Value.Y + 9);
+
+                        //    if (token.WaitHandle.WaitOne(1000)) return;
+                        //}
+
                         Logger.Instance.Log("토스: 시작버튼 반복" + TouchInjector.getColor(1886, 108).ToString());
                         TouchInjector.TouchClick(1894, 767);
                     }
@@ -1377,85 +1391,199 @@ namespace kakao_bank_macro
                     {
                         break;
                     }
-                    if (token.WaitHandle.WaitOne(300)) return;
-                }
-            }
-
-            Logger.Instance.Log("토스: 카운트" + count);
-            if (count % 50 == 49)
-            {
-                Logger.Instance.Log("토스: 뱅크 밖으로 나갔다 오기" + TouchInjector.getColor(1640, 165).ToString());
-
-                while(true)
-                {
-                    if (token.IsCancellationRequested) return;
-                    if (!TouchInjector.IsColorMatch(1640, 165, Color.FromArgb(242, 244, 245)))
-                    {
-                        TouchInjector.TouchClick(1540, 115);
-                        Logger.Instance.Log("토스: 뱅크 밖으로 나갔음" + TouchInjector.getColor(1640, 165).ToString());
-                        if (token.WaitHandle.WaitOne(2000)) return;
-                        break;
-                    }
                     if (token.WaitHandle.WaitOne(1000)) return;
                 }
-
-                
             }
+            //Logger.Instance.Log("토스: 카운트" + count);
+            //if (count % 25 == 0)
+            //{
+            //    Logger.Instance.Log("토스: 카운트도달" + count);
+            //    TouchInjector.TouchClick(1664, 783);
+            //    if (token.WaitHandle.WaitOne(2000)) return;
+            //    TouchInjector.TouchClick(1620, 406);
+            //    if (token.WaitHandle.WaitOne(5000)) return;
+            //    TouchInjector.TouchClick(1549, 113);
+            //    if (token.WaitHandle.WaitOne(3000)) return;
+            //    //Logger.Instance.Log("토스: 뱅크 밖으로 나갔다 오기" + TouchInjector.getColor(1640, 165).ToString());
 
-            Logger.Instance.Log("토스: 뱅크 밖으로 나갔는지 체크중22" + TouchInjector.getColor(1551, 289).ToString());
-            if (TouchInjector.IsColorMatch(1551, 289, Color.FromArgb(193, 176, 239)))
+            //    //while(true)
+            //    //{
+            //    //    if (token.IsCancellationRequested) return;
+            //    //    if (!TouchInjector.IsColorMatch(1640, 165, Color.FromArgb(242, 244, 245)))
+            //    //    {
+            //    //        TouchInjector.TouchClick(1540, 115);
+            //    //        Logger.Instance.Log("토스: 뱅크 밖으로 나갔음" + TouchInjector.getColor(1640, 165).ToString());
+            //    //        if (token.WaitHandle.WaitOne(2000)) return;
+            //    //        break;
+            //    //    }
+            //    //    if (token.WaitHandle.WaitOne(1000)) return;
+            //    //}
+
+
+            //}
+
+            //Logger.Instance.Log("토스: 뱅크 밖으로 나갔는지 체크중22" + TouchInjector.getColor(1551, 289).ToString());
+            //if (TouchInjector.IsColorMatch(1551, 289, Color.FromArgb(193, 176, 239)))
+            //{
+            //    Logger.Instance.Log("토스: 토스뱅크 환전 누름22" + TouchInjector.getColor(1551, 289).ToString());
+            //    TouchInjector.TouchClick(1551, 289);
+            //    if (token.WaitHandle.WaitOne(2000)) return;
+
+            //    while (true)
+            //    {
+            //        if (token.IsCancellationRequested) return;
+
+            //        if (!TouchInjector.IsColorMatch(1756, 128, Color.FromArgb(255, 255, 255)))
+            //        {
+            //            Logger.Instance.Log("토스: 내외화 -> 환율 클릭" + TouchInjector.getColor(1756, 128).ToString());
+            //            TouchInjector.TouchClick(1756, 128);
+            //            if (token.WaitHandle.WaitOne(2000)) return;
+
+            //            break;
+            //        }
+            //        if (token.WaitHandle.WaitOne(300)) return;
+            //    }
+            //}
+
+
+            //if (token.WaitHandle.WaitOne(300)) return;
+            //Logger.Instance.Log("토스: 아래로 스크롤");
+            //TouchInjector.TouchDrag(new (int x, int y)[]
+            //            {
+            //                    (1714, 744),
+            //                    (1714, 192),
+            //            }, 5, 100);
+            //if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("토스: 미국 달러 클릭");
+            TouchInjector.TouchClick(1593, 253);
+            while (true)
             {
-                Logger.Instance.Log("토스: 토스뱅크 환전 누름22" + TouchInjector.getColor(1551, 289).ToString());
-                TouchInjector.TouchClick(1551, 289);
-                if (token.WaitHandle.WaitOne(2000)) return;
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
 
-                while (true)
+                if (!TouchInjector.IsColorMatch(1596, 110, Color.FromArgb(255, 255, 255)))
                 {
-                    if (token.IsCancellationRequested) return;
-
-                    if (!TouchInjector.IsColorMatch(1756, 128, Color.FromArgb(255, 255, 255)))
-                    {
-                        Logger.Instance.Log("토스: 내외화 -> 환율 클릭" + TouchInjector.getColor(1756, 128).ToString());
-                        TouchInjector.TouchClick(1756, 128);
-                        if (token.WaitHandle.WaitOne(2000)) return;
-
-                        break;
-                    }
-                    if (token.WaitHandle.WaitOne(300)) return;
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
                 }
+                if (token.WaitHandle.WaitOne(300)) return;
             }
-
-
-            if (token.WaitHandle.WaitOne(300)) return;
-            Logger.Instance.Log("토스: 아래로 스크롤");
-            TouchInjector.TouchDrag(new (int x, int y)[]
-                        {
-                                (1714, 744),
-                                (1714, 192),
-                        }, 5, 100);
+            updateExchageRateV2(token, 1667, 344, pictureBox4, tossDLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
             if (token.WaitHandle.WaitOne(1000)) return;
 
-            updateExchageRate(@"image\대만.png", pictureBox7, tossTDLabel,4);
-            updateExchageRate(@"image\태국.png", pictureBox8, tossTBLabel,4);
-            updateExchageRate(@"image\인도네시아.png", pictureBox9, tossINLabel,4);
+            Logger.Instance.Log("토스: 일본 엔 클릭");
+            TouchInjector.TouchClick(1593, 311);
+            while (true)
+            {
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
 
-            Logger.Instance.Log("토스: 위로 스크롤");
-            TouchInjector.TouchDrag(new (int x, int y)[]
-                        {
-                                (1714, 354),
-                                (1714, 800),
-                        }, 5, 100);
+                if (!TouchInjector.IsColorMatch(1590, 110, Color.FromArgb(255, 255, 255)))
+                {
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+            updateExchageRateV2(token, 1667, 344, pictureBox5, tossYLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
+            if (token.WaitHandle.WaitOne(1000)) return;
 
-            TouchInjector.TouchDrag(new (int x, int y)[]
-                        {
-                                (1714, 354),
-                                (1714, 800),
-                        }, 5, 100);
+            Logger.Instance.Log("토스: 베트남 동 클릭");
+            TouchInjector.TouchClick(1593, 481);
+            while (true)
+            {
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1590, 110, Color.FromArgb(255, 255, 255)))
+                {
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+            updateExchageRateV2(token, 1667, 344, pictureBox6, tossVDLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("토스: 대만 달러 클릭");
+            TouchInjector.TouchClick(1593, 604);
+            while (true)
+            {
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1590, 110, Color.FromArgb(255, 255, 255)))
+                {
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+            updateExchageRateV2(token, 1667, 344, pictureBox7, tossTDLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("토스: 태국 바트 클릭");
+            TouchInjector.TouchClick(1593, 660);
+            while (true)
+            {
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1590, 110, Color.FromArgb(255, 255, 255)))
+                {
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+            updateExchageRateV2(token, 1667, 344, pictureBox8, tossTBLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
+            if (token.WaitHandle.WaitOne(1000)) return;
+
+            Logger.Instance.Log("토스: 인도네시아 루피아 클릭");
+            TouchInjector.TouchClick(1593, 830);
+            while (true)
+            {
+                Logger.Instance.Log("토스: 색체크" + TouchInjector.getColor(1597, 111).ToString());
+                if (token.IsCancellationRequested) return;
+
+                if (!TouchInjector.IsColorMatch(1590, 111, Color.FromArgb(255, 255, 255)))
+                {
+                    if (token.WaitHandle.WaitOne(400)) return;
+                    break;
+                }
+                if (token.WaitHandle.WaitOne(300)) return;
+            }
+            updateExchageRateV2(token, 1667, 344, pictureBox9, tossINLabel, 4);
+            TouchInjector.TouchClick(1544, 115);
 
 
-            updateExchageRate(@"image\미국.png", pictureBox4, tossDLabel,2);
-            updateExchageRate(@"image\일본.png", pictureBox5, tossYLabel,2);
-            updateExchageRate(@"image\베트남.png", pictureBox6, tossVDLabel,4);
+            //updateExchageRate(@"image\대만.png", pictureBox7, tossTDLabel,4);
+            //updateExchageRate(@"image\태국.png", pictureBox8, tossTBLabel,4);
+            //updateExchageRate(@"image\인도네시아.png", pictureBox9, tossINLabel,4);
+
+            //Logger.Instance.Log("토스: 위로 스크롤");
+            //TouchInjector.TouchDrag(new (int x, int y)[]
+            //            {
+            //                    (1714, 354),
+            //                    (1714, 800),
+            //            }, 5, 100);
+
+            //TouchInjector.TouchDrag(new (int x, int y)[]
+            //            {
+            //                    (1714, 354),
+            //                    (1714, 800),
+            //            }, 5, 100);
+
+
+            //updateExchageRate(@"image\미국.png", pictureBox4, tossDLabel,2);
+            //updateExchageRate(@"image\일본.png", pictureBox5, tossYLabel,2);
+            //updateExchageRate(@"image\베트남.png", pictureBox6, tossVDLabel,4);
 
             Logger.Instance.Log("토스: 끝" + TouchInjector.getColor(1585, 778).ToString());
 
@@ -1508,6 +1636,37 @@ namespace kakao_bank_macro
 
                 bmp.Dispose();
             }
+        }
+
+        private void updateExchageRateV2(CancellationToken token,int x, int y, PictureBox pictureBox, Label label, int 자리수)
+        {
+            Bitmap bmp = new Bitmap(68, 20);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.CopyFromScreen(x, y, 0, 0, new Size(68, 20));
+            }
+
+            string exchangeDRate = OcrHelper.Instance.RecognizeEnglish(bmp);
+            Logger.Instance.Log("토스: 글자인식: " + exchangeDRate);
+
+            if (exchangeDRate.Contains(".") && exchangeDRate.Split('.')[1].Length == 자리수)
+            {
+
+            }
+            else
+            {
+                exchangeDRate = OcrHelper.Instance.RunOcr(bmp);
+                Logger.Instance.Log("토스: 글자 인식 실패: " + exchangeDRate);
+            }
+
+            this.Invoke((Delegate)(() =>
+            {
+                pictureBox.Image?.Dispose();
+                pictureBox.Image = (Bitmap)bmp.Clone();
+                label.Text = exchangeDRate.Replace(",", "");
+            }));
+
+            bmp.Dispose();
         }
 
         private void getRateFromKakaoPay(CancellationToken token)
@@ -1654,13 +1813,20 @@ namespace kakao_bank_macro
             Logger.Instance.Log("스위치: 환율 화면" + TouchInjector.getColor(1583, 340).ToString());
             while (true)
             {
-                Logger.Instance.Log("스위치: 환율 화면111" + TouchInjector.getColor(1753, 600).ToString());
-                Logger.Instance.Log("스위치: 환율 화면111" + TouchInjector.getColor(1850, 600).ToString());
+                //Logger.Instance.Log("스위치: 환율 화면111" + TouchInjector.getColor(1753, 600).ToString());
+                //Logger.Instance.Log("스위치: 환율 화면111" + TouchInjector.getColor(1850, 600).ToString());
+                Logger.Instance.Log("스위치: 환율 화면111" + TouchInjector.getColor(1681, 717).ToString());
                 if (token.IsCancellationRequested) return;
 
                 // Thread.Sleep(5000);
                 // Logger.Instance.Log(TouchInjector.getColor(1583, 340).ToString());
-                if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
+                if (TouchInjector.IsColorMatch(1843, 660, Color.FromArgb(254, 229, 0)))
+                {
+                    Logger.Instance.Log("초기화: 스위치원 둘러보기 클릭");
+                    TouchInjector.TouchClick(1873, 109);
+                    token.WaitHandle.WaitOne(2000);
+                }
+                else if (TouchInjector.IsColorMatch(1803, 495, Color.FromArgb(25, 35, 51)))
                 {
                     Logger.Instance.Log("스위치: 광고 닫기1");
                     TouchInjector.TouchClick(1803, 495);
@@ -1715,7 +1881,7 @@ namespace kakao_bank_macro
                     TouchInjector.TouchClick(1753, 500);
                     if (token.WaitHandle.WaitOne(500)) return;
                 }
-                else if (TouchInjector.IsColorMatch(1583, 340, Color.FromArgb(67, 71, 77)))
+                else if (TouchInjector.IsColorMatch(1681, 717, Color.FromArgb(57, 110, 255)))
                 {
                     break;
                 }
@@ -1741,28 +1907,28 @@ namespace kakao_bank_macro
             }
 
             Logger.Instance.Log("스위치: 캡쳐");
-            Bitmap bmp = new Bitmap(130, 35);
+            Bitmap bmp = new Bitmap(213, 40);
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.CopyFromScreen(1548, 287, 0, 0, new Size(130, 35));
+                g.CopyFromScreen(1616, 214, 0, 0, new Size(213, 40));
             }
 
-            for (int y = 0; y < bmp.Height; y++)
-            {
-                for (int x = 0; x < bmp.Width; x++)
-                {
-                    Color c = bmp.GetPixel(x, y);
+            //for (int y = 0; y < bmp.Height; y++)
+            //{
+            //    for (int x = 0; x < bmp.Width; x++)
+            //    {
+            //        Color c = bmp.GetPixel(x, y);
 
-                    if (c.R > 200 && c.B < 150 && c.G < 150)   // Red 값이 200 이상이면
-                    {
-                        bmp.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
-                    }
-                    else if (c.R < 150 && c.B > 200 && c.G < 150)   // Red 값이 200 이상이면
-                    {
-                        bmp.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
-                    }
-                }
-            }
+            //        if (c.R > 200 && c.B < 150 && c.G < 150)   // Red 값이 200 이상이면
+            //        {
+            //            bmp.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
+            //        }
+            //        else if (c.R < 150 && c.B > 200 && c.G < 150)   // Red 값이 200 이상이면
+            //        {
+            //            bmp.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
+            //        }
+            //    }
+            //}
 
             string exchangeDWRate = OcrHelper.Instance.RecognizeEnglish(bmp);
             if (exchangeDWRate.Contains(".") && exchangeDWRate.Split('.')[1].Length == 2)
@@ -1772,7 +1938,7 @@ namespace kakao_bank_macro
             else
             {
                 exchangeDWRate = OcrHelper.Instance.RunOcr(bmp);
-                Logger.Instance.Log("토스: 글자 인식 실패: " + exchangeDWRate);
+                Logger.Instance.Log("스위치: 글자 인식 실패: " + exchangeDWRate);
             }
 
 
@@ -1798,7 +1964,7 @@ namespace kakao_bank_macro
                     TouchInjector.TouchClick(1578, 666);
                     if (token.WaitHandle.WaitOne(300)) return;
                 }
-                else if (TouchInjector.IsColorMatch(1560, 270, Color.FromArgb(204, 212, 226)))
+                else if (TouchInjector.IsColorMatch(1680, 187, Color.FromArgb(202, 210, 224)))
                 {
                     Logger.Instance.Log("스위치: 실버 로딩끝" + TouchInjector.getColor(1560, 270).ToString());
                     break;
@@ -1808,37 +1974,38 @@ namespace kakao_bank_macro
             if (token.WaitHandle.WaitOne(400)) return;
 
             Logger.Instance.Log("스위치: 캡쳐");
-            Bitmap bmp3 = new Bitmap(130, 35);
+            Bitmap bmp3 = new Bitmap(213, 40);
             using (Graphics g = Graphics.FromImage(bmp3))
             {
-                g.CopyFromScreen(1548, 287, 0, 0, new Size(130, 35));
+                g.CopyFromScreen(1616, 214, 0, 0, new Size(213, 40));
             }
 
-            for (int y = 0; y < bmp3.Height; y++)
-            {
-                for (int x = 0; x < bmp3.Width; x++)
-                {
-                    Color c = bmp3.GetPixel(x, y);
+            //for (int y = 0; y < bmp3.Height; y++)
+            //{
+            //    for (int x = 0; x < bmp3.Width; x++)
+            //    {
+            //        Color c = bmp3.GetPixel(x, y);
 
-                    if (c.R > 200 && c.B < 150 && c.G < 150)   // Red 값이 200 이상이면
-                    {
-                        bmp3.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
-                    }
-                    else if (c.R < 150 && c.B > 200 && c.G < 150)   // Red 값이 200 이상이면
-                    {
-                        bmp3.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
-                    }
-                }
-            }
+            //        if (c.R > 200 && c.B < 150 && c.G < 150)   // Red 값이 200 이상이면
+            //        {
+            //            bmp3.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
+            //        }
+            //        else if (c.R < 150 && c.B > 200 && c.G < 150)   // Red 값이 200 이상이면
+            //        {
+            //            bmp3.SetPixel(x, y, Color.White); // 픽셀을 흰색으로 변경
+            //        }
+            //    }
+            //}
 
             string exchangSRate = OcrHelper.Instance.RecognizeEnglish(bmp3);
+            Logger.Instance.Log("스위치: 실버 인식11 : " + exchangSRate);
             if (exchangSRate.Contains(".") && exchangSRate.Split('.')[1].Length == 2)
             {
-
+                Logger.Instance.Log("스위치: 실버 인식22 : " + exchangSRate);
             }
             else
             {
-                exchangSRate = OcrHelper.Instance.RunOcr(bmp);
+                exchangSRate = OcrHelper.Instance.RunOcr(bmp3);
                 Logger.Instance.Log("스위치: 실버 인식 실패: " + exchangSRate);
             }
 
@@ -2121,8 +2288,8 @@ namespace kakao_bank_macro
             await webView23.EnsureCoreWebView2Async(null);
             webView23.Source = new Uri("https://obank.kbstar.com/quics?page=C039209");
 
-            //await webView24.EnsureCoreWebView2Async(null);
-            //webView24.Source = new Uri("https://obank.kbstar.com/quics?page=C039209");
+            await webView24.EnsureCoreWebView2Async(null);
+            webView24.Source = new Uri("https://kr.investing.com/commodities/silver-streaming-chart");
 
             Logger.Instance.Initialize(
         @"C:\log\log1.txt",
@@ -2175,6 +2342,45 @@ namespace kakao_bank_macro
             return "0";
         }
 
+        private async Task<string> investingWaitAndGetCellAsync(string attribute)
+        {
+            string script =
+                "document.querySelector('[data-test=\"" + attribute +  "\"]').innerText;";
+
+            for (int i = 0; i < 30; i++)   // 최대 20번 * 300ms = 6초 대기
+            {
+                string result = await investingExecuteJsAsync(script);
+                string value = System.Text.Json.JsonSerializer.Deserialize<string>(result);
+
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value;
+
+                await Task.Delay(300);
+            }
+
+            return "0";
+        }
+
+        private Task<string> investingExecuteJsAsync(string script)
+        {
+            var tcs = new TaskCompletionSource<string>();
+
+            this.Invoke(new Action(async () =>
+            {
+                try
+                {
+                    string result = await webView24.ExecuteScriptAsync(script);
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            }));
+
+            return tcs.Task;
+        }
+
         private Task<string> KbExecuteJsAsync(string script)
         {
             var tcs = new TaskCompletionSource<string>();
@@ -2193,6 +2399,25 @@ namespace kakao_bank_macro
             }));
 
             return tcs.Task;
+        }
+
+        private async Task<string> KbSWaitAndGetCellAsync(string row, string col)
+        {
+            string script =
+                "document.querySelector(\"table#grd_list_body_table tbody tr:nth-child(" + row + ") td:nth-child(" + col + ")\")?.innerText";
+
+            for (int i = 0; i < 30; i++)   // 최대 20번 * 300ms = 6초 대기
+            {
+                string result = await KbSExecuteJsAsync(script);
+                string value = System.Text.Json.JsonSerializer.Deserialize<string>(result);
+
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value;
+
+                await Task.Delay(300);
+            }
+
+            return "0";
         }
 
         private Task<string> KbSExecuteJsAsync(string script)
@@ -2321,6 +2546,18 @@ namespace kakao_bank_macro
     ";
 
             webView22.ExecuteScriptAsync(script);
+        }
+
+        private void webView24_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+        {
+            if (webView24.CoreWebView2 == null)
+                return;
+
+            string script = @"
+        document.querySelectorAll('video').forEach(v => v.remove());
+    ";
+
+            webView24.ExecuteScriptAsync(script);
         }
     }
 }

@@ -118,6 +118,9 @@
             KBCurSTimeLabel = new Label();
             label36 = new Label();
             webView24 = new Microsoft.Web.WebView2.WinForms.WebView2();
+            InvestCurValueLabel = new Label();
+            InvestCurTimeLabel = new Label();
+            label37 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -726,7 +729,7 @@
             // 
             pictureBox10.Location = new Point(352, 480);
             pictureBox10.Name = "pictureBox10";
-            pictureBox10.Size = new Size(130, 35);
+            pictureBox10.Size = new Size(213, 40);
             pictureBox10.TabIndex = 70;
             pictureBox10.TabStop = false;
             // 
@@ -880,7 +883,7 @@
             // 
             pictureBox12.Location = new Point(352, 570);
             pictureBox12.Name = "pictureBox12";
-            pictureBox12.Size = new Size(170, 43);
+            pictureBox12.Size = new Size(213, 40);
             pictureBox12.TabIndex = 87;
             pictureBox12.TabStop = false;
             // 
@@ -936,15 +939,46 @@
             webView24.DefaultBackgroundColor = Color.White;
             webView24.Location = new Point(560, 41);
             webView24.Name = "webView24";
-            webView24.Size = new Size(43, 23);
+            webView24.Size = new Size(21, 29);
             webView24.TabIndex = 93;
             webView24.ZoomFactor = 1D;
+            webView24.NavigationCompleted += webView24_NavigationCompleted;
+            // 
+            // InvestCurValueLabel
+            // 
+            InvestCurValueLabel.AutoSize = true;
+            InvestCurValueLabel.Location = new Point(493, 260);
+            InvestCurValueLabel.Name = "InvestCurValueLabel";
+            InvestCurValueLabel.Size = new Size(14, 15);
+            InvestCurValueLabel.TabIndex = 96;
+            InvestCurValueLabel.Text = "0";
+            // 
+            // InvestCurTimeLabel
+            // 
+            InvestCurTimeLabel.AutoSize = true;
+            InvestCurTimeLabel.Location = new Point(493, 236);
+            InvestCurTimeLabel.Name = "InvestCurTimeLabel";
+            InvestCurTimeLabel.Size = new Size(14, 15);
+            InvestCurTimeLabel.TabIndex = 95;
+            InvestCurTimeLabel.Text = "0";
+            // 
+            // label37
+            // 
+            label37.AutoSize = true;
+            label37.Location = new Point(493, 212);
+            label37.Name = "label37";
+            label37.Size = new Size(95, 15);
+            label37.TabIndex = 94;
+            label37.Text = "인베스팅 은시세";
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(607, 645);
+            ClientSize = new Size(621, 645);
+            Controls.Add(InvestCurValueLabel);
+            Controls.Add(InvestCurTimeLabel);
+            Controls.Add(label37);
             Controls.Add(webView24);
             Controls.Add(KBCurSValueLabel);
             Controls.Add(KBCurSTimeLabel);
@@ -1154,5 +1188,8 @@
         private Label KBCurSTimeLabel;
         private Label label36;
         private Microsoft.Web.WebView2.WinForms.WebView2 webView24;
+        private Label InvestCurValueLabel;
+        private Label InvestCurTimeLabel;
+        private Label label37;
     }
 }
